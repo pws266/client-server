@@ -1,0 +1,10 @@
+# Files #
+#########
+task/task.iws
+task/.idea/workspace.xml
+task/.idea/dataSources.local.xml
+
+# Directories #
+###############
+task/out/
+

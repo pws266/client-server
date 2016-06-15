@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+
+<config>
+
+   <server port="8000"/>
+
+   <client port="8000">
+
+      <ServerHost>localhost</ServerHost>
+
+   </client>
+
+</config>
+
