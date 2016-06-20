@@ -36,7 +36,7 @@ class MainCore {
             //TODO: add StringBuilder instead of set of lines
             System.err.println("Illegal command line arguments number");
             System.err.println("Usage: java -classpath <path to package " +
-                               "folders> advanced.task.task " +
+                               "folders> advanced.task.MainCore " +
                                "<mode> -config <path to cfg file" +
                                "/cfg file name.xml>");
             System.err.println("Mode could be: <-server> or <-client>");
@@ -92,6 +92,7 @@ class MainCore {
         else {
             Client client = new Client(cfgReader.getHostName(),
                                        cfgReader.getPortNumber());
+            client.setReplyProcessor(new ReplyOnServerMsg());
             client.startExchange();
         }
     }

@@ -36,6 +36,8 @@ public class Server {
        try {
            srvSocket = new ServerSocket(portNumber);
 
+           System.out.println("Server is started: waiting for connection");
+
            while (true) {
                Socket usr_socket = srvSocket.accept();
 
@@ -48,7 +50,7 @@ public class Server {
            }
 
        } catch (IOException exc) {
-           System.out.println("Server error: Something wrong while /" +
+           System.out.println("Server error: Something wrong while " +
                               "listening on port " + portNumber);
            System.out.println("Error description: " + exc.getMessage());
 
@@ -109,7 +111,7 @@ public class Server {
                 in = new BufferedReader(new InputStreamReader(
                                         socket.getInputStream()));
             } catch (IOException exc) {
-                System.out.println("Connection error: Unable to initialize /" +
+                System.out.println("Connection error: Unable to initialize " +
                                    "I/O streams");
                 System.out.println("Error description: " + exc.getMessage());
 
@@ -129,8 +131,6 @@ public class Server {
 
             try {
                 //getting client name
-//                do {
-//                } while((userName = in.readLine()) == null);
                 userName = in.readLine();
 
                 System.out.println("Hello, " + userName +
@@ -138,6 +138,11 @@ public class Server {
                 out.println("You are successfully connected to server!");
 
                 while ((usrMsg = in.readLine()) != null) {
+                    System.out.println(userName + ": " + usrMsg);
+                    if("quit".equals(usrMsg)) {
+                        System.out.println("User \"" + userName + "\" is disconnected");
+                        break;
+                    }
                     out.println(usrMsg);
                 }
 
@@ -173,8 +178,9 @@ public class Server {
                 // switching server off if list is empty
                 connectList.remove(this);
                 if (connectList.isEmpty()) {
-                    Server.this.disconnect();
-                    System.exit(0);
+                    System.out.println("No clients in list. Waiting for connection");
+//                    Server.this.disconnect();
+//                    System.exit(0);
                 }
             } catch (IOException exc) {
                 System.out.println("Connection error: Unable to close socket " +
@@ -183,5 +189,10 @@ public class Server {
                 //TODO: add logging
             }
         }
+    }
+
+    public static void main(String[] args) {
+        ConfigReader cfgReader = new ConfigReader("../files/config.xml", true);
+        Server server = new Server(cfgReader.getPortNumber());
     }
 }

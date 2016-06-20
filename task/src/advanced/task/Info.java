@@ -16,30 +16,17 @@ class Info {
     }
 
     // tags for XML configuration file parsing
-    static final String configTag;
+    static final String configTag = "config";
 
-    static final String serverTag;
-    static final String clientTag;
+    static final String serverTag = "server";
+    static final String clientTag = "client";
 
-    static final String portTag;
+    static final String portTag = "port";
 
-    static final String hostTag;
+    static final String hostTag = "ServerHost";
 
-    static final int cmdLineArgsNumber;  // arguments number in command line
-    static final int cmdLineKeysNumber;  // correct keys number in command line
-
-    // static fields initialization
-    static {
-        configTag = "config";
-
-        serverTag = "server";
-        clientTag = "client";
-
-        portTag = "port";
-
-        hostTag = "ServerHost";
-
-        cmdLineArgsNumber = 3;
-        cmdLineKeysNumber = 2;
-    }
+    // arguments number in command line
+    static final int cmdLineArgsNumber = 3;
+    // correct keys number in command line
+    static final int cmdLineKeysNumber = 2;
 }

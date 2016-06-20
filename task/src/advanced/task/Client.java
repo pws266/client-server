@@ -10,18 +10,18 @@ import java.net.Socket;
  * Created on 09.06.16.
  */
 public class Client {
-    // socket for connection with server
-    private Socket socket;
+    private int portNumber;  // server port number
+    private String hostName; // host name
 
-    // client input stream control
-    private BufferedReader in;
-    // client output stream control
-    private PrintWriter out;
+    private Socket socket;   // socket for connection with server
 
-    // client commands input stream
-    private BufferedReader cmdIn;
-    // client response on received server message
-    private ReplyProcessor srvReply;
+    private BufferedReader in; // client input stream control
+    private PrintWriter out;   // client output stream control
+
+    private BufferedReader cmdIn; // client commands input stream
+
+    private ReplyProcessor srvReply; // client response (with callback method)
+                                     // on received server message
 
     /**
      * Constructor creates client instance specifying parameters for
@@ -34,25 +34,11 @@ public class Client {
      * All parameters could be get via XML configuration file parsing
      */
     public Client(String hostName, int portNumber) {
-        try {
-            //initializing socket for connection with server
-            socket = new Socket(hostName, portNumber);
+        this.portNumber = portNumber;
+        this.hostName = hostName;
 
-            //initializing input and output client streams
-            in = new BufferedReader(new InputStreamReader(
-                                    socket.getInputStream()));
-            out = new PrintWriter(socket.getOutputStream(), true);
-
-            //initializing client commands input as standard input(by default)
-            cmdIn = new BufferedReader(new InputStreamReader(System.in));
-        } catch (IOException exc) {
-            System.out.println("Client error: Unable to close socket or " +
-                               "I/O streams");
-            System.out.println("Error description: " + exc.getMessage());
-            //TODO: add logging
-        } finally {
-            close();
-        }
+        // initializing client commands input as standard input(by default)
+        cmdIn = new BufferedReader(new InputStreamReader(System.in));
     }
 
     /**
@@ -60,7 +46,7 @@ public class Client {
      *
      * @param srvReply - class instance implementing interface "ReplyProcessor"
      */
-    public void assignReplyProcessor(ReplyProcessor srvReply) {
+    public void setReplyProcessor(ReplyProcessor srvReply) {
         this.srvReply = srvReply;
     }
 
@@ -68,19 +54,47 @@ public class Client {
      * Initiates messages exchange between client and server
      */
     public void startExchange() {
-        String srvMsg;
-        String usrMsg;
+        try {
+            // asking user name
+            System.out.print("Enter your name, plz: ");
+            String userName = cmdIn.readLine();
+
+            // initializing socket for connection with server
+            socket = new Socket(hostName, portNumber);
+
+            // initializing input and output client streams
+            in = new BufferedReader(new InputStreamReader(
+                    socket.getInputStream()));
+            out = new PrintWriter(socket.getOutputStream(), true);
+
+            // sending user name to server
+            out.println(userName);
+        } catch (IOException exc) {
+            System.out.println("Client error: Something wrong with socket or " +
+                    "I/O streams. Is server switched on?");
+            System.out.println("Error description: " + exc.getMessage());
+            //TODO: add logging
+        }
+//        finally {
+//            close();
+//        }
+
+        String srvMsg;  // message from server
+        String usrMsg;  // command from client
 
         try {
             while ((srvMsg = in.readLine()) != null) {
-                srvReply.onProcess(srvMsg);
+                System.out.println(srvReply.onProcess(srvMsg));
 
+                System.out.print("> ");
                 usrMsg = cmdIn.readLine();
+
                 if (usrMsg != null) {
                     System.out.println("Client: " + usrMsg);
                     out.println(usrMsg);
 
                     if("quit".equals(usrMsg)) {
+                        System.out.println("--- End of connection. Bye! ---");
                         break;
                     }
                 }
@@ -94,7 +108,26 @@ public class Client {
         }
     }
 
-    //TODO: add method for ByteArrayInputStream assigning as "cmdIn"
+    /**
+     * @param inputStream - input commands source. Could be instance of
+     *                      "System.in" for standard keyboard input or
+     *                      "ByteArrayInputStream" for testing
+     */
+    public void setInputStream(InputStream inputStream) {
+        try {
+            cmdIn.close();
+        } catch (IOException exc) {
+            System.out.println("Client error: Problems with input stream " +
+                               "closing");
+            System.out.println("Error description: " + exc.getMessage());
+            //TODO: add logging
+        }
+//        finally {
+//            close();
+//        }
+
+        cmdIn = new BufferedReader(new InputStreamReader(inputStream));
+    }
 
     /**
      * Closes client socket and I/O streams
@@ -109,10 +142,19 @@ public class Client {
 
             socket.close();
         } catch (IOException exc) {
-            System.out.println("Client error: Unable to close socket or /" +
+            System.out.println("Client error: Unable to close socket or " +
                                "I/O streams");
             System.out.println("Error description: " + exc.getMessage());
             //TODO: add logging
         }
+    }
+
+    public static void main(String[] args) {
+        ConfigReader cfgReader = new ConfigReader("../files/config.xml", false);
+
+        Client client = new Client(cfgReader.getHostName(),
+                cfgReader.getPortNumber());
+        client.setReplyProcessor(new ReplyOnServerMsg());
+        client.startExchange();
     }
 }

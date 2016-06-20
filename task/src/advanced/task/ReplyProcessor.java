@@ -12,12 +12,12 @@ interface ReplyProcessor {
 }
 
 /**
- *
+ * Server messages primitive processing by client
  */
 class ReplyOnServerMsg implements ReplyProcessor {
     @Override
     public String onProcess(String msg) {
-        return null;
+        return "Server: " + msg;
     }
 }
 
