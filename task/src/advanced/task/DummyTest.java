@@ -8,6 +8,7 @@ import java.io.InputStreamReader;
 /**
  * Created by newbie on 15.06.16.
  */
+
 public class DummyTest {
     public static void main(String[] args) {
         BufferedReader cmdIn = new BufferedReader(new InputStreamReader(System.in));

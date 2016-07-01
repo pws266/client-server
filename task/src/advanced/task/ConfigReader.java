@@ -10,6 +10,8 @@ import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
 import java.io.File;
 import java.io.IOException;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * Configuration file reader.
@@ -20,10 +22,25 @@ import java.io.IOException;
  * Created on 14.06.16.
  */
 class ConfigReader {
+    private static final int CONFIG_EXIT_CODE = 5;  // exit code
+
+    // tags for XML configuration file parsing
+    private static final String CONFIG_TAG = "config";
+
+    private static final String SERVER_TAG = "server";
+    private static final String CLIENT_TAG = "client";
+
+    private static final String PORT_TAG = "port";
+
+    private static final String HOST_TAG = "ServerHost";
+
     // client/server port number
     private int portNumber = 0;
     // host name for client's usage
     private String hostName;
+
+    // logger for tracing error messages
+    private static final Logger log = Logger.getLogger(Client.class.getName());
 
     /**
      * Constructor reads parameters from specified *.xml configuration file
@@ -45,26 +62,26 @@ class ConfigReader {
             doc.getDocumentElement().normalize();
 
             // parsing XML body
-            NodeList cfgList = doc.getElementsByTagName(Info.configTag);
+            NodeList cfgList = doc.getElementsByTagName(CONFIG_TAG);
 
             Node cfgNode = cfgList.item(0);
             if (cfgNode.getNodeType() == Node.ELEMENT_NODE) {
                 Element cfgElm = (Element)cfgNode;
 
                 // reading port value for client/server
-                String dstTag = isServer ? Info.serverTag : Info.clientTag;
+                String dstTag = isServer ? SERVER_TAG : CLIENT_TAG;
                 NodeList dstList = cfgElm.getElementsByTagName(dstTag);
 
                 Node dstNode = dstList.item(0);
                 if (dstNode.getNodeType() == Node.ELEMENT_NODE) {
                     Element dstElm = (Element)dstNode;
                     portNumber = Integer.parseInt(dstElm.getAttribute(
-                                                  Info.portTag));
+                                                  PORT_TAG));
 
                     // getting host name for client
                     if (!isServer) {
                         NodeList hostList = dstElm.getElementsByTagName(
-                                                   Info.hostTag);
+                                                   HOST_TAG);
                         Node hostNode = hostList.item(0);
                         if (hostNode.getNodeType() == Node.ELEMENT_NODE) {
                             NodeList list = hostNode.getChildNodes();
@@ -78,20 +95,17 @@ class ConfigReader {
             }
 
         } catch(ParserConfigurationException exc) {
-            System.out.println("ConfigReader error: unable to get DOM " +
-                               "document instance from XML");
-            System.out.println("Error description: " + exc.getMessage());
-            //TODO: add logging
+            log.log(Level.SEVERE, "ConfigReader error: unable to get DOM " +
+                    "document instance from XML", exc);
+            System.exit(CONFIG_EXIT_CODE);
         } catch(org.xml.sax.SAXException exc) {
-            System.out.println("ConfigReader error: unable to parse given " +
-                               "XML content");
-            System.out.println("Error description: " + exc.getMessage());
-            //TODO: add logging
+            log.log(Level.SEVERE, "ConfigReader error: unable to parse given " +
+                    "XML content", exc);
+            System.exit(CONFIG_EXIT_CODE);
         } catch(IOException exc) {
-            System.out.println("ConfigReader error: some I/O problems occur " +
-                               "while parsing XML");
-            System.out.println("Error description: " + exc.getMessage());
-            //TODO: add logging
+            log.log(Level.SEVERE, "ConfigReader error: some I/O problems " +
+                    "occur while parsing XML", exc);
+            System.exit(CONFIG_EXIT_CODE);
         }
     }
 

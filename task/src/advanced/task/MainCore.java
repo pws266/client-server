@@ -1,25 +1,7 @@
 package advanced.task;
 
-/**
- * Custom exception class for command line arguments verification
- *
- * @author Sergey Sokhnyshev
- * Created on 10.06.16.
- */
-
-class IncorrectCmdLineException extends Exception {
-    private String msg;
-
-    IncorrectCmdLineException(String msg) {
-        // using superclass constructor for correct detailed message output
-        super(msg);
-        this.msg = msg;
-    }
-
-    public String toString() {
-        return "IncorrectCmdLineException: " + msg;
-    }
-}
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * Class for client or server execution.
@@ -30,20 +12,27 @@ class IncorrectCmdLineException extends Exception {
  * Created on 10.06.16.
  */
 class MainCore {
+    // logger for tracing error messages
+    private static final Logger log = Logger.getLogger(Client.class.getName());
+
+    // correct command line parameters
+    private static final int CMD_LINE_ARGS_NUMBER = 3;  // arguments number
+    private static final int CMD_LINE_KEYS_NUMBER = 2;  // correct keys number
+    private static final int MAIN_EXIT_CODE = 1;        // exit code
+
     public static void main(String[] args) {
         // checking arguments number in command line
-        if (args.length != Info.cmdLineArgsNumber) {
-            //TODO: add StringBuilder instead of set of lines
-            System.err.println("Illegal command line arguments number");
-            System.err.println("Usage: java -classpath <path to package " +
-                               "folders> advanced.task.MainCore " +
-                               "<mode> -config <path to cfg file" +
-                               "/cfg file name.xml>");
-            System.err.println("Mode could be: <-server> or <-client>");
-
-            System.exit(1);
-
-            //TODO: add logging
+        try {
+            if (args.length != CMD_LINE_ARGS_NUMBER) {
+                throw new Exception("Illegal command line arguments number");
+            }
+        } catch (Exception exc) {
+            log.log(Level.SEVERE, "Usage: java -classpath <path to package " +
+                                  "folders> advanced.task.MainCore " +
+                                  "<mode> -config <path to cfg file" +
+                                  "/cfg file name.xml>\nMode could be: " +
+                                  "<-server> or <-client>", exc);
+            System.exit(MAIN_EXIT_CODE);
         }
 
         // reading arguments
@@ -69,13 +58,13 @@ class MainCore {
                 }
             }
 
-            if (correctKeysNumber != Info.cmdLineKeysNumber) {
-                throw new IncorrectCmdLineException("Illegal keys in command " +
+            if (correctKeysNumber != CMD_LINE_KEYS_NUMBER) {
+                throw new Exception("Illegal keys in command " +
                         "line. Correct keys number: " + correctKeysNumber);
             }
-        } catch (IncorrectCmdLineException exc) {
-            System.err.println("Error: " + exc.getMessage());
-            System.exit(1);
+        } catch (Exception exc) {
+            log.log(Level.SEVERE, "Wrong arguments command line format", exc);
+            System.exit(MAIN_EXIT_CODE);
         }
 
         System.out.println("Server: " + isServer);
@@ -91,9 +80,8 @@ class MainCore {
         // or client
         else {
             Client client = new Client(cfgReader.getHostName(),
-                                       cfgReader.getPortNumber());
-            client.setReplyProcessor(new ReplyOnServerMsg());
-            client.startExchange();
+                                       cfgReader.getPortNumber(), System.in);
+            client.go(new ClientResponder());
         }
     }
 }

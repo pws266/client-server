@@ -2,6 +2,10 @@ package advanced.task;
 
 import java.io.*;
 import java.net.Socket;
+import java.net.UnknownHostException;
+import java.nio.charset.StandardCharsets;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * Client class for communication with server upon text commands
@@ -10,18 +14,15 @@ import java.net.Socket;
  * Created on 09.06.16.
  */
 public class Client {
-    private int portNumber;  // server port number
-    private String hostName; // host name
+    private static final int CLIENT_EXIT_CODE = 3;  // exit code
 
-    private Socket socket;   // socket for connection with server
+    private int portNumber;        // server port number
+    private String hostName;       // host name
 
-    private BufferedReader in; // client input stream control
-    private PrintWriter out;   // client output stream control
+    private InputStream inStream;  // external stream for commands input
 
-    private BufferedReader cmdIn; // client commands input stream
-
-    private ReplyProcessor srvReply; // client response (with callback method)
-                                     // on received server message
+    // logger for tracing error messages
+    private static final Logger log = Logger.getLogger(Client.class.getName());
 
     /**
      * Constructor creates client instance specifying parameters for
@@ -30,122 +31,75 @@ public class Client {
      * @param hostName - host name of server placement
      * @param portNumber - port number on which server is available for
      *                     connection
+     * @param inStream - external stream for clients commands obtaining
      *
-     * All parameters could be get via XML configuration file parsing
+     * Two first constructor parameters could be get via XML configuration
+     * file parsing
      */
-    public Client(String hostName, int portNumber) {
+    public Client(String hostName, int portNumber, InputStream inStream) {
         this.portNumber = portNumber;
         this.hostName = hostName;
 
-        // initializing client commands input as standard input(by default)
-        cmdIn = new BufferedReader(new InputStreamReader(System.in));
-    }
-
-    /**
-     * Assigns processing method for received server messages
-     *
-     * @param srvReply - class instance implementing interface "ReplyProcessor"
-     */
-    public void setReplyProcessor(ReplyProcessor srvReply) {
-        this.srvReply = srvReply;
+        this.inStream = inStream;
     }
 
     /**
      * Initiates messages exchange between client and server
+     *
+     * @param responder - processes server messages according to predefined
+     *                    method
      */
-    public void startExchange() {
-        try {
+    public void go(Responder responder) {
+        try ( BufferedReader cmdIn = new BufferedReader(
+                                     new InputStreamReader(inStream, StandardCharsets.UTF_8)) ) {
             // asking user name
             System.out.print("Enter your name, plz: ");
             String userName = cmdIn.readLine();
 
-            // initializing socket for connection with server
-            socket = new Socket(hostName, portNumber);
+            try (
+                    Socket socket=new Socket(hostName, portNumber);
+                    BufferedReader in = new BufferedReader(new InputStreamReader(
+                                    socket.getInputStream(), StandardCharsets.UTF_8));
+                    PrintWriter out = new PrintWriter(socket.getOutputStream(),
+                                  true)
+            ){
+                // sending user name to server
+                out.println(userName);
 
-            // initializing input and output client streams
-            in = new BufferedReader(new InputStreamReader(
-                    socket.getInputStream()));
-            out = new PrintWriter(socket.getOutputStream(), true);
+                String srvMsg;  // message from server
+                String usrMsg;  // command from client
 
-            // sending user name to server
-            out.println(userName);
-        } catch (IOException exc) {
-            System.out.println("Client error: Something wrong with socket or " +
-                    "I/O streams. Is server switched on?");
-            System.out.println("Error description: " + exc.getMessage());
-            //TODO: add logging
-        }
-//        finally {
-//            close();
-//        }
+                while ((srvMsg = in.readLine()) != null) {
+                    System.out.println(responder.onProcess(srvMsg));
 
-        String srvMsg;  // message from server
-        String usrMsg;  // command from client
+                    System.out.print("> ");
+                    usrMsg = cmdIn.readLine();
 
-        try {
-            while ((srvMsg = in.readLine()) != null) {
-                System.out.println(srvReply.onProcess(srvMsg));
+                    if (usrMsg != null) {
+                        System.out.println("Client: " + usrMsg);
+                        out.println(usrMsg);
 
-                System.out.print("> ");
-                usrMsg = cmdIn.readLine();
-
-                if (usrMsg != null) {
-                    System.out.println("Client: " + usrMsg);
-                    out.println(usrMsg);
-
-                    if("quit".equals(usrMsg)) {
-                        System.out.println("--- End of connection. Bye! ---");
-                        break;
+                        if ("quit".equals(usrMsg)) {
+                            System.out.println("--- End of connection. Bye! ---");
+                            break;
+                        }
                     }
                 }
+            } catch (UnknownHostException exc) {
+                log.log(Level.SEVERE, "Client \"" + userName + "\" : Unkown " +
+                        "error while connecting to host = \"" + hostName +
+                        "\" port = " + portNumber, exc);
+                System.exit(CLIENT_EXIT_CODE);
+            } catch (IOException exc) {
+                log.log(Level.SEVERE, "Client \"" + userName + "\" : I/O " +
+                        "error while connecting to host = \"" + hostName +
+                        "\" port = " + portNumber, exc);
+                System.exit(CLIENT_EXIT_CODE);
             }
         } catch (IOException exc) {
-            System.out.println("Client error: Unable to close socket or " +
-                    "I/O streams");
-            System.out.println("Error description: " + exc.getMessage());
-            //TODO: add logging
-
-        }
-    }
-
-    /**
-     * @param inputStream - input commands source. Could be instance of
-     *                      "System.in" for standard keyboard input or
-     *                      "ByteArrayInputStream" for testing
-     */
-    public void setInputStream(InputStream inputStream) {
-        try {
-            cmdIn.close();
-        } catch (IOException exc) {
-            System.out.println("Client error: Problems with input stream " +
-                               "closing");
-            System.out.println("Error description: " + exc.getMessage());
-            //TODO: add logging
-        }
-//        finally {
-//            close();
-//        }
-
-        cmdIn = new BufferedReader(new InputStreamReader(inputStream));
-    }
-
-    /**
-     * Closes client socket and I/O streams
-     */
-
-    private void close() {
-        try {
-            in.close();
-            out.close();
-
-            cmdIn.close();
-
-            socket.close();
-        } catch (IOException exc) {
-            System.out.println("Client error: Unable to close socket or " +
-                               "I/O streams");
-            System.out.println("Error description: " + exc.getMessage());
-            //TODO: add logging
+            log.log(Level.SEVERE, "Client error: I/O error in attempt to " +
+                    "use external input stream for entering commands", exc);
+            System.exit(CLIENT_EXIT_CODE);
         }
     }
 
@@ -153,8 +107,7 @@ public class Client {
         ConfigReader cfgReader = new ConfigReader("../files/config.xml", false);
 
         Client client = new Client(cfgReader.getHostName(),
-                cfgReader.getPortNumber());
-        client.setReplyProcessor(new ReplyOnServerMsg());
-        client.startExchange();
+                                   cfgReader.getPortNumber(), System.in);
+        client.go(new ClientResponder());
     }
 }
