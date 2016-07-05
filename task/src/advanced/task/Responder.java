@@ -81,13 +81,22 @@ class ServerResponder<Connection> implements Responder<Connection> {
             case 6: srvMsg += Integer.toString(((Server.Connection)connect).
                                                  getConnectionsNumber());
                     break;
+            // response on user connection index request
             case 7: int connectIndex = ((Server.Connection)connect).
                                          getConnectionIndex();
                     srvMsg += (connectIndex == Info.notFound) ?
                               "not found! Oops!" : Integer.toString(connectIndex);
                     break;
-            case 8: srvMsg += "\n one \ntwo \nthree \nfour\n";
+            // response on user commands set request
+            case 8: StringBuffer cmdSet = new StringBuffer(srvMsg);
+
+                    for (String s : Info.usrCmd) {
+                        cmdSet.append("\n- ").append(s);
+                    }
+
+                    srvMsg = cmdSet.toString();
                     break;
+
         }
 
         return srvMsg;

@@ -3,7 +3,6 @@ package advanced.task;
 import java.io.*;
 import java.net.Socket;
 import java.net.UnknownHostException;
-import java.nio.charset.StandardCharsets;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -15,6 +14,7 @@ import java.util.logging.Logger;
  */
 public class Client {
     private static final int CLIENT_EXIT_CODE = 3;  // exit code
+    private static final int DEFAULT_ID = -1;       // client's default ID
 
     private int portNumber;        // server port number
     private String hostName;       // host name
@@ -51,33 +51,39 @@ public class Client {
      */
     public void go(Responder responder) {
         try ( BufferedReader cmdIn = new BufferedReader(
-                                     new InputStreamReader(inStream, StandardCharsets.UTF_8)) ) {
+                                     new InputStreamReader(inStream)) ) {
             // asking user name
             System.out.print("Enter your name, plz: ");
+
             String userName = cmdIn.readLine();
 
             try (
-                    Socket socket=new Socket(hostName, portNumber);
-                    BufferedReader in = new BufferedReader(new InputStreamReader(
-                                    socket.getInputStream(), StandardCharsets.UTF_8));
-                    PrintWriter out = new PrintWriter(socket.getOutputStream(),
-                                  true)
+                    Socket socket = new Socket(hostName, portNumber);
+                    DataInputStream in = new DataInputStream(
+                            new BufferedInputStream(socket.getInputStream()));
+                    DataOutputStream out = new DataOutputStream(
+                            new BufferedOutputStream(socket.getOutputStream()))
             ){
                 // sending user name to server
-                out.println(userName);
+                out.write(Command.pack(new CommandTraits(userName, DEFAULT_ID)));
+                out.flush();
 
-                String srvMsg;  // message from server
                 String usrMsg;  // command from client
 
-                while ((srvMsg = in.readLine()) != null) {
-                    System.out.println(responder.onProcess(srvMsg));
+                CommandTraits recCmd = null;
+
+                while (!(recCmd = Command.receive(in)).isEOF) {
+                    System.out.println(responder.onProcess(recCmd.msg));
 
                     System.out.print("> ");
                     usrMsg = cmdIn.readLine();
 
                     if (usrMsg != null) {
                         System.out.println("Client: " + usrMsg);
-                        out.println(usrMsg);
+//>                        out.println(usrMsg);
+                        out.write(Command.pack(new CommandTraits(usrMsg,
+                                               recCmd.clientID)));
+                        out.flush();
 
                         if ("quit".equals(usrMsg)) {
                             System.out.println("--- End of connection. Bye! ---");

@@ -1,12 +1,8 @@
 package advanced.task;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.PrintWriter;
+import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -22,6 +18,8 @@ import java.util.logging.Logger;
  */
 public class Server {
     private static final int SERVER_EXIT_CODE = 2;  // exit code
+
+    private int clientsCounter = 0;     // clients counter for ID assigning
 
     // connections list maintaining by server
     private final List<Connection> connectList;
@@ -110,32 +108,43 @@ public class Server {
         @Override
         public void run() {
             try (
-                PrintWriter out = new PrintWriter(socket.getOutputStream(),
-                                                  true);
-                BufferedReader in = new BufferedReader(new InputStreamReader(
-                                        socket.getInputStream(), StandardCharsets.UTF_8))
+                DataOutputStream out = new DataOutputStream(
+                        new BufferedOutputStream(socket.getOutputStream()));
+                DataInputStream in = new DataInputStream(
+                        new BufferedInputStream(socket.getInputStream()))
             ) {
                 String usrMsg;  // received client message
                 String svrMsg;  // sending server message
 
                 //getting client name
-                usrName = in.readLine();
+                CommandTraits recCmd = Command.receive(in);
+                usrName = recCmd.msg;
 
                 System.out.println("Hello, " + usrName +
                            "! You are successfully connected to server!");
-                out.println("You are successfully connected to server!");
+                out.write(Command.pack(new CommandTraits(
+                        "You are successfully connected to server!",
+                        Server.this.clientsCounter++)));
+                out.flush();
+//                out.println("You are successfully connected to server!");
 
-                while ((usrMsg = in.readLine()) != null) {
-                    System.out.println(usrName + ": " + usrMsg);
-                    if("quit".equals(usrMsg)) {
+//                while ((usrMsg = in.readLine()) != null) {
+                // getting and decoding command from client's side
+                while (!(recCmd = Command.receive(in)).isEOF) {
+                    // getting and decoding command from client's side
+                    System.out.println(usrName + ": " + recCmd.msg);
+                    if("quit".equals(recCmd.msg)) {
                         System.out.println("User \"" + usrName +
                                            "\" is disconnected");
                         break;
                     }
 
-                    svrMsg = responder.onProcess(usrMsg);
+                    svrMsg = responder.onProcess(recCmd.msg);
 
-                    out.println(svrMsg);
+//                    out.println(svrMsg);
+                    out.write(Command.pack(new CommandTraits(svrMsg,
+                                                             recCmd.clientID)));
+                    out.flush();
                 }
 
 
