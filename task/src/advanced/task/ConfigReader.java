@@ -110,14 +110,14 @@ class ConfigReader {
     }
 
     /**
-     * Returns client/server port number
+     * @return client/server port number
      */
     final int getPortNumber() {
         return portNumber;
     }
 
     /**
-     * Returns host name for client case
+     * @return host name for client case
      */
     final String getHostName() {
         return hostName;

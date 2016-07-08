@@ -75,13 +75,13 @@ class MainCore {
 
         // starting server
         if (isServer) {
-            Server server = new Server(cfgReader.getPortNumber());
+            new Server(cfgReader.getPortNumber(), new AIServerListener());
         }
         // or client
         else {
             Client client = new Client(cfgReader.getHostName(),
                                        cfgReader.getPortNumber(), System.in);
-            client.go(new ClientResponder());
+            client.go(new SimpleClientListener());
         }
     }
 }

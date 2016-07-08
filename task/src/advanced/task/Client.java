@@ -6,6 +6,8 @@ import java.net.UnknownHostException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import static advanced.task.CommandTraits.DEFAULT_ID;
+import static advanced.task.Info.QUIT_CMD;
 /**
  * Client class for communication with server upon text commands
  *
@@ -14,7 +16,7 @@ import java.util.logging.Logger;
  */
 public class Client {
     private static final int CLIENT_EXIT_CODE = 3;  // exit code
-    private static final int DEFAULT_ID = -1;       // client's default ID
+    private static final String QUIT_MSG = "Disconnected. Bye.";
 
     private int portNumber;        // server port number
     private String hostName;       // host name
@@ -46,10 +48,10 @@ public class Client {
     /**
      * Initiates messages exchange between client and server
      *
-     * @param responder - processes server messages according to predefined
-     *                    method
+     * @param listener - processes server messages according to predefined
+     *                   method
      */
-    public void go(Responder responder) {
+    public void go(ClientListener listener) {
         try ( BufferedReader cmdIn = new BufferedReader(
                                      new InputStreamReader(inStream)) ) {
             // asking user name
@@ -70,23 +72,23 @@ public class Client {
 
                 String usrMsg;  // command from client
 
-                CommandTraits recCmd = null;
+                CommandTraits recCmd;
 
                 while (!(recCmd = Command.receive(in)).isEOF) {
-                    System.out.println(responder.onProcess(recCmd.msg));
+                    System.out.println(listener.onProcess(recCmd.msg));
 
                     System.out.print("> ");
                     usrMsg = cmdIn.readLine();
 
                     if (usrMsg != null) {
                         System.out.println("Client: " + usrMsg);
-//>                        out.println(usrMsg);
+
                         out.write(Command.pack(new CommandTraits(usrMsg,
                                                recCmd.clientID)));
                         out.flush();
 
-                        if ("quit".equals(usrMsg)) {
-                            System.out.println("--- End of connection. Bye! ---");
+                        if (QUIT_CMD.equals(usrMsg)) {
+                            System.out.println(QUIT_MSG);
                             break;
                         }
                     }
@@ -114,6 +116,6 @@ public class Client {
 
         Client client = new Client(cfgReader.getHostName(),
                                    cfgReader.getPortNumber(), System.in);
-        client.go(new ClientResponder());
+        client.go(new SimpleClientListener());
     }
 }

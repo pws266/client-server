@@ -21,11 +21,16 @@ public class Info {
 
     // exit codes
 
-    public static final int notFound = -1;
+    public static final int CMD_NOT_FOUND = -1;
+    // default server reply for unknown command token
+    public static final String DEFAULT_MSG = "Unknown command. Should I " +
+            "consider it like a message to a world?";
+    // command for client disconnection
+    public static final String QUIT_CMD = "quit";
 
     // tokens of known user commands
-    public static final List<String> usrCmd = Collections.synchronizedList(
-                                              new ArrayList<String>() {{
+    public static final List<String> USER_CMD = Collections.synchronizedList(
+                                                new ArrayList<String>() {{
         add("hello");       // 0 - greeting
         add("my name");     // 1 - ask client's name
         add("your name");   // 2 - ask server's name
@@ -35,12 +40,12 @@ public class Info {
         add("total");       // 6 - ask total connections number
         add("my number");   // 7 - ask connection index
         add("help");        // 8 - get maintained user commands set
-        add("quit");        // 9 - disconnect and exit
+        add("id");          // 9 - get client's ID assigned by server
     }});
 
     // server messages for response forming on server side
-    public static final List<String> srvMsg = Collections.synchronizedList(
-                                              new ArrayList<String>() {{
+    public static final List<String> SERVER_MSG = Collections.synchronizedList(
+                                                  new ArrayList<String>() {{
         // 0 - (cmd)greeting response
         add("Hi, ");
         // 1 - (cmd)client's name response
@@ -51,17 +56,15 @@ public class Info {
         add("The current time is: ");
         // 4 - (cmd)response to current date request
         add("Today is: ");
-        // 5 - responce on rudeness
+        // 5 - response on rudeness
         add(":) ... Spielberg. Watch your tongue!");
         // 6 - (cmd)response on total connections number request
         add("Total connections number is: ");
         // 7 - (cmd)response on user connection index request
         add("Your connection number is: ");
         // 8 - (cmd)response on user commands set request
-        add("I know next commands: ");
-        // 9 - (cmd)disconnect message
-        add("You are disconnected. Have a nice day, ");
-        //10 - default message
-        add("Unknown command. Should I consider it like a message to a world?");
+        add("The commands could contain these known tokens: ");
+        // 9 - (cmd)client's ID response
+        add("Client's ID is: ");
     }});
 }

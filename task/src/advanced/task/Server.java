@@ -9,6 +9,9 @@ import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import static advanced.task.CommandTraits.DEFAULT_ID;
+import static advanced.task.Info.QUIT_CMD;
+
 /**
  * Simple multithread server for messages exchange with multiple clients.
  * Each "client-server" connection is processed in separate thread
@@ -24,6 +27,9 @@ public class Server {
     // connections list maintaining by server
     private final List<Connection> connectList;
 
+    // client commands processor (operates via callback)
+    private final ServerListener listener;
+
     // logger for tracing error messages
     private static final Logger log = Logger.getLogger(Client.class.getName());
 
@@ -32,11 +38,14 @@ public class Server {
      *
      * @param portNumber - port number listening by server for client connection
      *                     Could be taken from *.xml configuration file
+     * @param listener - processes client messages according to predefined
+     *                   method
      */
-   public Server(int portNumber) {
+   public Server(int portNumber, ServerListener listener) {
+       this.listener = listener;
        connectList = Collections.synchronizedList(new ArrayList<Connection>());
 
-       try ( ServerSocket srvSocket = new ServerSocket(portNumber) ) {
+       try (ServerSocket srvSocket = new ServerSocket(portNumber)) {
            System.out.println("Server is started: waiting for connection");
 
            try {
@@ -44,8 +53,7 @@ public class Server {
                    Socket usrSocket = srvSocket.accept();
 
                    // creating connection and adding it to connection list
-                   Connection link = new Connection(usrSocket,
-                                             new ServerResponder<>());
+                   Connection link = new Connection(usrSocket);
                    connectList.add(link);
 
                    // executing connection in separate thread
@@ -71,14 +79,15 @@ public class Server {
      */
     class Connection extends Thread {
         private static final int CONNECTION_EXIT_CODE = 4;  // exit code
+        private static final String THREAD_NAME = "ConnectionThread";
+        private static final String WELCOME_MSG = "You are successfully " +
+                                                  "connected to server!";
+        private static final String QUIT_MSG = "User \"%s\" is disconnected\n";
         // socket for client connection created and listed by server
         private Socket socket;
 
-        // client commands processor (operates via callback)
-        private Responder responder;
-
-        // client name corresponding to this connection
-        private String usrName = "";
+        private String usrName = "";       // client's name
+        private int clientID = DEFAULT_ID; // client ID
 
         // logger for tracing error messages
         private final Logger log = Logger.getLogger(Client.class.getName());
@@ -89,15 +98,10 @@ public class Server {
          *
          * @param socket - socket instance obtained by invoking
          *                 "server.accept()"
-         * @param responder - processes client messages according to predefined
-         *                    method
          */
-        Connection(Socket socket, Responder<Connection> responder) {
-            super("SvrThread");
+        Connection(Socket socket) {
+            super(THREAD_NAME + Server.this.clientsCounter++);
             this.socket = socket;
-
-            this.responder = responder;
-            responder.onSetup(this);
         }
 
         /**
@@ -113,45 +117,33 @@ public class Server {
                 DataInputStream in = new DataInputStream(
                         new BufferedInputStream(socket.getInputStream()))
             ) {
-                String usrMsg;  // received client message
                 String svrMsg;  // sending server message
 
                 //getting client name
                 CommandTraits recCmd = Command.receive(in);
                 usrName = recCmd.msg;
+                clientID = Server.this.clientsCounter;
 
-                System.out.println("Hello, " + usrName +
-                           "! You are successfully connected to server!");
-                out.write(Command.pack(new CommandTraits(
-                        "You are successfully connected to server!",
-                        Server.this.clientsCounter++)));
+                System.out.println("Hello, " + usrName + WELCOME_MSG);
+                out.write(Command.pack(new CommandTraits(WELCOME_MSG,
+                                                         clientID)));
                 out.flush();
-//                out.println("You are successfully connected to server!");
 
-//                while ((usrMsg = in.readLine()) != null) {
                 // getting and decoding command from client's side
                 while (!(recCmd = Command.receive(in)).isEOF) {
-                    // getting and decoding command from client's side
                     System.out.println(usrName + ": " + recCmd.msg);
-                    if("quit".equals(recCmd.msg)) {
-                        System.out.println("User \"" + usrName +
-                                           "\" is disconnected");
+                    if(QUIT_CMD.equals(recCmd.msg)) {
+                        System.out.printf(QUIT_MSG, usrName);
                         break;
                     }
 
-                    svrMsg = responder.onProcess(recCmd.msg);
+                    synchronized (listener) {
+                        svrMsg = listener.onProcess(recCmd.msg, this);
+                    }
 
-//                    out.println(svrMsg);
-                    out.write(Command.pack(new CommandTraits(svrMsg,
-                                                             recCmd.clientID)));
+                    out.write(Command.pack(new CommandTraits(svrMsg, clientID)));
                     out.flush();
                 }
-
-
-                //TODO: add protocol
-                //TODO: print about user entering on client and server side
-
-
             } catch (IOException exc) {
                 log.log(Level.SEVERE, (usrName.isEmpty() ?
                         "Unestablished connection" : "Connection with user \"" +
@@ -164,24 +156,31 @@ public class Server {
         }
 
         /**
-         * Returns user name corresponding to this connection
+         * @return user name corresponding to this connection
          */
         final String getUsrName() {
             return usrName;
         }
 
         /**
-         * Returns total connections number
+         * @return total connections number
          */
         final int getConnectionsNumber() {
             return Server.this.connectList.size();
         }
 
         /**
-         * Returns given connection index
+         * @return index of this connection in general server connections list
          */
         final int getConnectionIndex() {
             return Server.this.connectList.indexOf(this);
+        }
+
+        /**
+         * @return client's ID assigned by server
+         */
+        final int getClientID() {
+            return clientID;
         }
 
         /**
@@ -193,14 +192,13 @@ public class Server {
 
                 // removing current connection from list
                 // switching server off if list is empty
-                connectList.remove(this);
-                if (connectList.isEmpty()) {
-                    System.out.println("No active connections: " +
-                                       "waiting for user connections");
+                synchronized (connectList) {
+                    connectList.remove(this);
+                        System.out.println("No active connections: " +
+                                "waiting for user connections");
                 }
-
             } catch (IOException exc) {
-                log.log(Level.SEVERE, "Connection error: Unable to close " +"" +
+                log.log(Level.SEVERE, "Connection error: Unable to close " +
                         "socket", exc);
                 System.exit(CONNECTION_EXIT_CODE);
             }
@@ -209,6 +207,6 @@ public class Server {
 
     public static void main(String[] args) {
         ConfigReader cfgReader = new ConfigReader("../files/config.xml", true);
-        new Server(cfgReader.getPortNumber());
+        new Server(cfgReader.getPortNumber(), new AIServerListener());
     }
 }

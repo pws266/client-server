@@ -28,7 +28,7 @@ import java.util.logging.Logger;
  * or not
  */
 class CommandTraits {
-    public static final int DEFAULT_ID = -1;  // client's ID default value
+    static final int DEFAULT_ID = -1;  // client's ID default value
 
     int clientID = DEFAULT_ID;  // client ID number
     String msg = "";            // message or command content
