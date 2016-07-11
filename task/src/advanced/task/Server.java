@@ -31,7 +31,7 @@ public class Server {
     private final ServerListener listener;
 
     // logger for tracing error messages
-    private static final Logger log = Logger.getLogger(Client.class.getName());
+    private static final Logger log = Logger.getLogger(Server.class.getName());
 
     /**
      * Constructor for server instance creation listening specified port
@@ -100,8 +100,10 @@ public class Server {
          *                 "server.accept()"
          */
         Connection(Socket socket) {
-            super(THREAD_NAME + Server.this.clientsCounter++);
+            super(THREAD_NAME + Server.this.clientsCounter);
             this.socket = socket;
+
+            clientID = Server.this.clientsCounter++;
         }
 
         /**
@@ -122,9 +124,8 @@ public class Server {
                 //getting client name
                 CommandTraits recCmd = Command.receive(in);
                 usrName = recCmd.msg;
-                clientID = Server.this.clientsCounter;
 
-                System.out.println("Hello, " + usrName + WELCOME_MSG);
+                System.out.println("Hello, " + usrName + "! " + WELCOME_MSG);
                 out.write(Command.pack(new CommandTraits(WELCOME_MSG,
                                                          clientID)));
                 out.flush();
@@ -194,8 +195,10 @@ public class Server {
                 // switching server off if list is empty
                 synchronized (connectList) {
                     connectList.remove(this);
+                    if (connectList.isEmpty()) {
                         System.out.println("No active connections: " +
                                 "waiting for user connections");
+                    }
                 }
             } catch (IOException exc) {
                 log.log(Level.SEVERE, "Connection error: Unable to close " +

@@ -19,7 +19,9 @@ public class Info {
         throw new AssertionError();
     }
 
-    // exit codes
+    // "absolute" path to logging resource properties file
+    public static final String LOG_RESOURCE_FILE_PATH =
+                               "/res/logging.properties";
 
     public static final int CMD_NOT_FOUND = -1;
     // default server reply for unknown command token
@@ -67,4 +69,17 @@ public class Info {
         // 9 - (cmd)client's ID response
         add("Client's ID is: ");
     }});
+
+    // usage brief annotation for testing class
+    public static final String TESTING_ANNOTATION = "Usage: java " +
+            "-classpath <path_to_package_folders> advanced.task.Testing\n" +
+            "-config <path_to_cfg_file/cfg file name.xml>\n" +
+            "-usr <clients_number>\n" +
+            "-cmd <commands_number_per_client>";
+
+    // usage brief annotation foe main class
+    public static final String MAIN_ANNOTATION = "Usage: java -classpath " +
+            "<path to package folders> advanced.task.MainCore\n" +
+            "-config <path to cfg file/cfg file name.xml>\n" +
+            "<mode> (-client or -server)";
 }

@@ -40,7 +40,8 @@ class ConfigReader {
     private String hostName;
 
     // logger for tracing error messages
-    private static final Logger log = Logger.getLogger(Client.class.getName());
+    private static final Logger log = Logger.getLogger(
+                                             ConfigReader.class.getName());
 
     /**
      * Constructor reads parameters from specified *.xml configuration file

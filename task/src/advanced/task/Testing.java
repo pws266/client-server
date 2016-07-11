@@ -1,17 +1,21 @@
 package advanced.task;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.DataOutputStream;
-import java.io.IOException;
+import java.io.*;
 import java.util.*;
 import java.util.concurrent.BrokenBarrierException;
 import java.util.concurrent.CyclicBarrier;
 import java.util.logging.Level;
+import java.util.logging.LogManager;
 import java.util.logging.Logger;
 
-import static advanced.task.Info.USER_CMD;
-import static advanced.task.Info.QUIT_CMD;
+import static advanced.task.Info.*;
+
+/**
+ * Server testing with multiple clients.
+ *
+ * @author Sergey Sokhnyshev
+ * Created on 06.07.16.
+ */
 
 /**
  * Client's listener for multiple clients testing case. Collects commands
@@ -63,6 +67,8 @@ class EchoServerListener implements ServerListener {
  * Generates command list and automatically send its.
  */
 class ClientThread implements Runnable {
+    // different sizes of sent and received command lists
+    static final int SZ_MISMATCH = -1;
     // set of possible client names
     private static int clientCounter = 0;  // clients counter
     private static final String THREAD_NAME = "ClientThread";
@@ -76,7 +82,7 @@ class ClientThread implements Runnable {
     private final CyclicBarrier cb;      // cyclic barrier for further commands
                                          // statistic computation
     private int clientID;  // client thread unique number
-    private int cmdNumber; // commands number for transmittion
+    private int cmdNumber; // commands number for transmission
 
     private String hostName;  // server's host name
     private int portNumber;   // server's port number
@@ -84,7 +90,8 @@ class ClientThread implements Runnable {
     private List<String> recCmdList = new ArrayList<>();
 
     // logger for tracing error messages
-    private static final Logger log = Logger.getLogger(Client.class.getName());
+    private static final Logger log = Logger.getLogger(
+                                             ClientThread.class.getName());
 
     /**
      * Creates commands list for transmitting by client to server
@@ -175,9 +182,20 @@ class ClientThread implements Runnable {
         }
     }
 
-    int compareCmd() {
-        int errorsNumber = 0;
-        String cmd;
+    /**
+     * Performs received and sent commands list comparison for this client
+     * @return number of mismatched commands
+     */
+    final int compareCmd() {
+        int errorsNumber = 0;  // comparison errors number
+        String cmd;            // current command
+
+        // checking sent and received command list sizes
+        if (recCmdList.size() != cmdList.size() - 1) {
+            return SZ_MISMATCH;
+        }
+
+        // comparing commands excepting user name and last "quit" command
         for (int i = 1; i <= cmdNumber; ++i) {
             cmd = cmdList.get(i);
             if(!recCmdList.get(i).equals(cmd.substring(0, cmd.length() - 1))) {
@@ -187,128 +205,206 @@ class ClientThread implements Runnable {
 
         return errorsNumber;
     }
+
+    /**
+     * @return commands number sending by client to server
+     */
+    final int getCmdNumber() {
+        return cmdNumber;
+    }
 }
 
+/**
+ * Server wrapper allowing execution in separate thread for testing purposes.
+ * Receives and sends back commands from connected clients.
+ */
+class ServerThread implements Runnable {
+    private final String cfgFileName;   // configuration file name
+
+    /**
+     * Constructor for server wrapper
+     * @param cfgFileName - *.xml configuration file path and file name
+     */
+    ServerThread(String cfgFileName) {
+        this.cfgFileName = cfgFileName;
+    }
+
+    /**
+     * Thread function performing server execution
+     * @see java.lang.Runnable#run()
+     */
+    @Override
+    public void run() {
+        ConfigReader cfgReader = new ConfigReader(cfgFileName, true);
+        new Server(cfgReader.getPortNumber(), new EchoServerListener());
+    }
+}
+/**
+ * Commands mismatch computer for each client connected to server.
+ * Executes by cyclic barrier.
+ */
+class ErrorComputer implements Runnable {
+    private final List<ClientThread> client;  // set of client threads
+
+    /**
+     * Constructor of errors computer
+     * @param client - client thread list for errors computation
+     */
+    ErrorComputer(List<ClientThread> client) {
+        this.client = client;
+    }
+
+    /**
+     * Thread function performing number of commands mismatch computation
+     * @see java.lang.Runnable#run()
+     */
+    @Override
+    public void run() {
+        System.out.println("All client commands are processed!");
+        System.out.println("\nClients number: " + client.size());
+        System.out.println("Commands per client: " +
+                   (client.isEmpty() ? 0 : client.get(0).getCmdNumber())
+                   + '\n');
+
+        // performing errors computation per each client
+        int currentErrorsNumber;  // comparison errors number per client
+        int sumErrorsNumber = 0;  // total errors number per test case
+
+        for(int i = 0; i < client.size(); ++i) {
+            currentErrorsNumber = client.get(i).compareCmd();
+            sumErrorsNumber += currentErrorsNumber;
+
+            if (currentErrorsNumber != 0) {
+                if (currentErrorsNumber == ClientThread.SZ_MISMATCH) {
+                    System.out.println("User ID: " + i +
+                                       " command list sizes mismatch");
+                }
+                else {
+                    System.out.println("User ID: " + i + " errors: " +
+                            currentErrorsNumber);
+                }
+            }
+        }
+
+        if (sumErrorsNumber == 0) {
+            System.out.println("All commands are received correctly!");
+        }
+
+        System.exit(0);
+    }
+}
 
 /**
- * Server testing with multiple clients.
- *
- * @author Sergey Sokhnyshev
- * Created on 06.07.16.
+ * Testing class for server with multiple clients connection cass.
+ * Determines whether all command from all clients are received correctly.
+ * The commands are sent from client side to server started in echo mode.
+ * The received commands are compared on client side with sent commands,
  */
 public class Testing {
-    public static void main(String[] args) {
-        // starting server
+    private static final int CMD_LINE_ARGS_NUMBER = 6;  // arguments number
+    private static final int CMD_LINE_KEYS_NUMBER = 3;  // correct keys number
+    private static final int TESTING_EXIT_CODE = 8;     // exit code
 
-        new Thread(new Runnable() {
+    // logger for tracing error messages
+    private static final Logger log = Logger.getLogger(Testing.class.getName());
 
-            @Override
-            public void run() {
-                ConfigReader cfgReader = new ConfigReader("../files/config.xml",
-                                                          true);
-                new Server(cfgReader.getPortNumber(), new EchoServerListener());
+    /**
+     * Switches on logging and attempts to create folder for *.log - files
+     */
+    private static void enableLogging() {
+        // switching on logging
+        // resource file should be in the same folder with package folders
+        // Using "absolute" path
+        try {
+            LogManager.getLogManager().readConfiguration(
+                    advanced.task.Testing.class.getResourceAsStream(
+                            LOG_RESOURCE_FILE_PATH));
+        } catch (IOException exc) {
+            log.log(Level.SEVERE, "Error: unable to read logging " +
+                    "configuration file", exc);
+            System.exit(TESTING_EXIT_CODE);
+        }
+
+        // creating folder for logging
+        if (log.getParent().getLevel() != Level.OFF) {
+            try {
+                //getting name of log folder
+                Properties logTraits = new Properties();
+                logTraits.load(advanced.task.Testing.class.getResourceAsStream(
+                        LOG_RESOURCE_FILE_PATH));
+
+                // attempting to create folder for logs
+                MainCore.createLoggingFolder(logTraits, log);
+            } catch (IOException exc){
+                log.log(Level.SEVERE, "Error: unable to read/load logging " +
+                        "configuration file", exc);
+                System.exit(TESTING_EXIT_CODE);
             }
-        }, "TestServerThread").start();
+        }
+    }
 
-        // creating cyclic barrier
-        int usrNumber = 100;  // clients number in test
-        int cmdNumber = 1000;  // commands number sending by each client
-                                 // to server
+    public static void main(String[] args) {
+        // enabling logging
+        enableLogging();
+
+        // checking arguments number in command line
+        MainCore.checkCmdLineArgNumber(args.length, CMD_LINE_ARGS_NUMBER, log,
+                                       TESTING_ANNOTATION, TESTING_EXIT_CODE);
+        // reading arguments
+        String cfgFileName = "";  //configuration file name
+        int usrNumber = 10;       // clients number in test
+        int cmdNumber = 100;       // commands number sending by each client
+                                  // to server
+        int correctKeysNumber = 0;
+
+        try {
+            for (int i = 0; i < args.length; ++i) {
+                if ("-config".equals(args[i])) {
+                    cfgFileName = args[++i];
+                    ++correctKeysNumber;
+
+                    continue;
+                }
+
+                if ("-usr".equals(args[i])) {
+                    usrNumber = Integer.parseInt(args[++i]);
+                    ++correctKeysNumber;
+
+                    continue;
+                }
+
+                if ("-cmd".equals(args[i])) {
+                    cmdNumber = Integer.parseInt(args[++i]);
+                    ++correctKeysNumber;
+                }
+            }
+
+            if (correctKeysNumber != CMD_LINE_KEYS_NUMBER) {
+                throw new Exception("Illegal keys in command " +
+                        "line. Correct keys number: " + correctKeysNumber);
+            }
+        } catch (Exception exc) {
+            log.log(Level.SEVERE, "Wrong arguments command line format", exc);
+            System.exit(TESTING_EXIT_CODE);
+        }
+
+        // starting server
+        new Thread(new ServerThread(cfgFileName), "TestServerThread").start();
 
         // creating and executing clients
-        ConfigReader cfgReader = new ConfigReader("../files/config.xml", false);
+        ConfigReader cfgReader = new ConfigReader(cfgFileName, false);
         List<ClientThread> client = new ArrayList<>(usrNumber);
 
-        CyclicBarrier cb = new CyclicBarrier(usrNumber, new Runnable() {
-            @Override
-            public void run() {
-                System.out.println("All threads are over!");
+        // creating cyclic barrier: declaring error computation invoking AFTER
+        // client's threads finalization
+        CyclicBarrier cb = new CyclicBarrier(usrNumber, new ErrorComputer(
+                                                            client));
 
-                int currentErrorsNumber;
-                int sumErrorsNumber = 0;
-
-                for(int i = 0; i < usrNumber; ++i) {
-                    currentErrorsNumber = client.get(i).compareCmd();
-                    sumErrorsNumber += currentErrorsNumber;
-
-                    if (currentErrorsNumber != 0) {
-                        System.out.println("User ID: " + i + " errors: " + currentErrorsNumber);
-                    }
-                }
-
-                if (sumErrorsNumber == 0) {
-                    System.out.println("All commands received correctly!");
-                }
-
-                System.exit(0);
-            }
-        });
-
+        // starting clients threads for connection to server and sending
+        // random set of commands
         for (int i = 0; i < usrNumber; ++i) {
             client.add(new ClientThread(cmdNumber, cfgReader.getHostName(),
                                       cfgReader.getPortNumber(), cb));
         }
-
-/*
-        // filling buffer with commands
-        List<String> cmd = new LinkedList<String>();
-        int commandsNumber = 100;
-
-        // adding name
-        cmd.add("Jane" + '\n');
-
-        Random rnd = new Random();
-
-        for (int i = 0; i < commandsNumber; ++i) {
-            cmd.add(USER_CMD.get(rnd.nextInt(USER_CMD.size())) + '\n');
-        }
-
-        // adding quit command
-        cmd.add(QUIT_CMD + '\n');
-
-        System.out.println("Size: " + cmd.size());
-
-        for (String s : cmd) {
-            System.out.print(s);
-        }
-
-        // getting byte array
-        ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        DataOutputStream out = new DataOutputStream(baos);
-
-        for (String s : cmd) {
-            try {
-                out.write(s.getBytes());
-            } catch (IOException exc) {
-                System.out.println("DataOutputStream error");
-                System.exit(1);
-            }
-        }
-
-        ByteArrayInputStream bais = new ByteArrayInputStream(baos.toByteArray());
-
-        // trying to feed client
-        ConfigReader cfgReader = new ConfigReader("../files/config.xml", false);
-
-        Client client = new Client(cfgReader.getHostName(),
-                cfgReader.getPortNumber(), bais);
-
-        StorageClientListener storage = new StorageClientListener();
-
-        client.go(storage);
-
-        try {
-            Thread.sleep(1000);
-        } catch (InterruptedException exc) {
-
-        }
-
-        System.out.println("Received CMD: ");
-        for(String s : storage.recCmd) {
-            System.out.println(s);
-        }
-
-        System.out.println("Received size: " + storage.recCmd.size());
-        */
     }
 }

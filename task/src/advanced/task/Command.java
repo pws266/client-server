@@ -64,7 +64,7 @@ public class Command {
     private static final int DEFAULT_SZ = -1;  // default command size value
     private static final int COMMAND_EXIT_CODE = 6;  // exit code
     // logger for tracing error messages
-    private static final Logger log = Logger.getLogger(Client.class.getName());
+    private static final Logger log = Logger.getLogger(Command.class.getName());
 
     /**
      * Transforms command fields to byte sequence according aforementioned
@@ -166,32 +166,5 @@ public class Command {
         }
 
         return Command.unpack(cmdBody, cmdSz);
-    }
-
-    public static void main(String[] args) {
-        String newMsg = "Don't give up \\r Fuck 'em all \\n Ever\\rNever give up!\\n";
-        System.out.println("New message: " + newMsg);
-
-        CommandTraits inTraits = new CommandTraits(newMsg, 20161010);
-        CommandTraits outTraits;
-
-        byte[] recMsg = Command.pack(inTraits);
-
-        // emulating reading of command size first from stream
-        ByteBuffer bb = ByteBuffer.wrap(recMsg, 0, FIELD_SIZE);
-
-        int sz = bb.getInt();
-
-        System.out.println("Read command size: " + sz);
-
-        byte[] newRecMsg = new byte[sz];
-        System.arraycopy(recMsg, FIELD_SIZE, newRecMsg, 0, sz);
-
-        System.out.println("Received message: \n " + recMsg);
-
-        outTraits = Command.unpack(newRecMsg, sz);
-
-        System.out.println("Client ID: " + outTraits.clientID);
-        System.out.println("Message: \n" + outTraits.msg);
     }
 }

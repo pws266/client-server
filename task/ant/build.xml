@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<project name="task.build" default="compile">
+	<property name="dir.build" value="../.build" />
+	<property name="dir.classes" value="${dir.build}/classes" />
+	<property name="dir.jar" value="${dir.build}/jar" />
+	<property name="dir.src" value="../src" />
+	<property name="dir.srcrc" value="../src/res" />
+	<property name="dir.dstrc" value="${dir.classes}/res" />
+	<property name="dir.cfg" value="../../files" />
+    <property name="dir.log" value="log" />
+	<property name="file.jar" value="${dir.jar}/java.advanced.jar" />
+    <property name="test.jar" value="${dir.jar}/java.advanced.test.jar" />
+	<property name="file.xml" value="${dir.cfg}/config.xml" />
+
+	<property file="Ant.properties" />
+
+	<target name="clean" description="Cleaning previous build">
+		<echo>Removing previous build results</echo>
+		<delete dir="${dir.build}" />
+        <delete dir="${dir.log}" />
+	</target>
+
+	<target name="mkdirs" depends="clean" description="Making auxiliary folders">
+		<echo>Creating folders for compilation results</echo>
+		<mkdir dir="${dir.build}" />
+		<mkdir dir="${dir.classes}" />
+		<mkdir dir="${dir.dstrc}" />
+		<mkdir dir="${dir.jar}" />
+	</target>
+
+	<target name="copyrc" description="Copying resource files">
+		<echo>Copying resourse file with logging settings</echo>
+		<copy todir="${dir.dstrc}">
+			<fileset dir="${dir.srcrc}" />
+		</copy>
+	</target>
+
+	<target name="compile" depends="mkdirs" description="Compiling project">
+		<echo>Source files compilation</echo>
+		<javac srcdir="${dir.src}" destdir="${dir.classes}" />
+	</target>
+	
+	<target name="make-main-jar" depends="compile, copyrc"
+			description="Creating client/server executable *.jar archive">
+		<echo>Packing application in ${file.jar}</echo>
+		<jar destfile="${file.jar}"
+			 basedir="${dir.classes}"
+			 compress="false"
+			 index="true">
+			<manifest>
+				<attribute name="Built-By" value="${java.user.name}" />
+				<attribute name="Main-Class" value="advanced.task.MainCore" />
+				<section name="common">
+					<attribute name="Specification-Title" value="Java Advanced course task"/>
+					<attribute name="Specification-Version" value="${sw.version}"/>
+					<attribute name="Specification-Vendor" value="DataArt"/>
+					<attribute name="Implementation-Title" value="common"/>
+					<attribute name="Implementation-Version" value="${sw.version} ${sw.date}"/> 
+					<attribute name="Implementation-Vendor" value="Unknown"/>
+ 				</section>
+			</manifest>
+		</jar>
+	</target>
+
+	<target name="make-test-jar" depends="compile, copyrc"
+			description="Creating testing executable *.jar archive">
+		<echo>Packing testing application in ${test.jar}</echo>
+		<jar destfile="${test.jar}"
+			 basedir="${dir.classes}"
+			 compress="false"
+			 index="true">
+			<manifest>
+				<attribute name="Built-By" value="${java.user.name}" />
+				<attribute name="Main-Class" value="advanced.task.Testing" />
+				<section name="common">
+					<attribute name="Specification-Title" value="Java Advanced course task, testing"/>
+					<attribute name="Specification-Version" value="${sw.version}"/>
+					<attribute name="Specification-Vendor" value="DataArt"/>
+					<attribute name="Implementation-Title" value="common"/>
+					<attribute name="Implementation-Version" value="${sw.version} ${sw.date}"/>
+					<attribute name="Implementation-Vendor" value="Unknown"/>
+				</section>
+			</manifest>
+		</jar>
+	</target>
+
+	<target name="run-server" depends="make-main-jar"
+			description="Deploying Java Advanced course task in server mode :)">
+		<echo>>>Starting server"</echo>
+		<java jar="${file.jar}" fork="true">
+			<arg line="-config ${file.xml} -server" />
+		</java>
+	</target>
+
+	<target name="run-client" depends="make-main-jar"
+			description="Deploying Java Advanced course task in client mode:)">
+		<echo>>>Starting client"</echo>
+		<java jar="${file.jar}" fork="true">
+			<arg line="-config ${file.xml} -client" />
+		</java>
+	</target>
+
+    <target name="run-test" depends="make-test-jar"
+            description="Deploying multi-client testing of Java Advanced course task :)">
+        <echo>>>Starting multi-client testing"</echo>
+        <java jar="${test.jar}" fork="true">
+            <arg line="-config ${file.xml} -usr 200 -cmd 1000" />
+        </java>
+    </target>
+
+</project>
