@@ -4,9 +4,14 @@ server maintained multiple clients via connections realized each in separated
 thread. Payload testing class and simple exchange protocol are also realized.
 Logging is also supported for exceptions.
 
+Added corrections according review #1 issues. Added server manual stopping,
+another method of messages sending/reception, changed method of command tokens
+processing. Implements some java 8 tricks.
+
 Folders structure:
 - files - folder containig configuration *.xml - file for client and server with
           server port number and host name;
+- log - folder with *.log - files;
 - jar - forlder with built *.jar - archives:
       - java.advanced.jar - archive with classes for client/server execution;
       - java.advanced.test.jar - archive for testing execution;
