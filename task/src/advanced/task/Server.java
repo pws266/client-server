@@ -3,25 +3,27 @@ package advanced.task;
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.net.SocketTimeoutException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import static advanced.task.CommandTraits.DEFAULT_ID;
-import static advanced.task.Info.QUIT_CMD;
+import static advanced.task.Info.*;
 
 /**
  * Simple multithread server for messages exchange with multiple clients.
- * Each "client-server" connection is processed in separate thread
+ * Each "client-server" connection is processed in separate thread.
+ * Server should be executed in separate thread.
  *
  * @author Sergey Sokhnyshev
  * Created on 09.06.16.
  */
-public class Server {
-    private static final int SERVER_EXIT_CODE = 2;  // exit code
+public class Server implements Runnable {
+    private volatile boolean isStop = false;  // flag notifying of server stop
 
+    private final int portNumber;  // server's port number
     private int clientsCounter = 0;     // clients counter for ID assigning
 
     // connections list maintaining by server
@@ -34,6 +36,44 @@ public class Server {
     private static final Logger log = Logger.getLogger(Server.class.getName());
 
     /**
+     * Disables server disconnecting all clients
+     */
+    public void stop() {
+        isStop = true;
+    }
+
+    /**
+     * Starts server with termination ability by command "stop" entered from
+     * keyboard
+     * @param portNumber - port number listening by server for client connection
+     *                     Could be taken from *.xml configuration file
+     * @param listener - processes client messages according to predefined
+     *                   method
+     */
+    public static void start(int portNumber, ServerListener listener) {
+        Server srv = new Server(portNumber, listener);
+        new Thread(srv, SERVER_THREAD_NAME).start();
+
+        log.info(String.format("Type \"%s\" for server work termination",
+                               SERVER_STOP_CMD));
+
+        try ( BufferedReader cmdIn = new BufferedReader(
+                                         new InputStreamReader(System.in)) ) {
+            String stopCmd;
+            while ((stopCmd = cmdIn.readLine()) != null) {
+                if (SERVER_STOP_CMD.compareToIgnoreCase(stopCmd) == 0) {
+                    break;
+                }
+            }
+        } catch (IOException exc) {
+            log.log(Level.SEVERE, "Server error: Problems while waiting " +
+                    "server stop command input", exc);
+        } finally {
+            srv.stop();
+        }
+    }
+
+    /**
      * Constructor for server instance creation listening specified port
      *
      * @param portNumber - port number listening by server for client connection
@@ -41,53 +81,69 @@ public class Server {
      * @param listener - processes client messages according to predefined
      *                   method
      */
-   public Server(int portNumber, ServerListener listener) {
-       this.listener = listener;
-       connectList = Collections.synchronizedList(new ArrayList<Connection>());
+    public Server(int portNumber, ServerListener listener) {
+        this.listener = listener;
+        this.portNumber = portNumber;
 
-       try (ServerSocket srvSocket = new ServerSocket(portNumber)) {
-           System.out.println("Server is started: waiting for connection");
+        connectList = Collections.synchronizedList(new ArrayList<Connection>());
+    }
 
-           try {
-               while (true) {
-                   Socket usrSocket = srvSocket.accept();
+    /**
+     * Thread function for server execution in separate thread
+     * @see java.lang.Runnable#run()
+     */
+    @Override
+    public void run() {
+        try (ServerSocket srvSocket = new ServerSocket(portNumber)) {
+            // setting server socket timeout
+            srvSocket.setSoTimeout(SERVER_SOCKET_TIMEOUT);
 
-                   // creating connection and adding it to connection list
-                   Connection link = new Connection(usrSocket);
-                   connectList.add(link);
+            log.info(SERVER_START_MSG + NO_CONNECTION_MSG);
 
-                   // executing connection in separate thread
-                   link.start();
-               }
-           } finally {
-               synchronized (connectList) {
-                   connectList.forEach(Connection::close);
-               }
-           }
-       } catch (IOException exc) {
-           log.log(Level.SEVERE, "Server error: Problems while listening on " +
+            try {
+                while (!isStop) {
+                    Socket usrSocket;
+
+                    try {
+                        usrSocket = srvSocket.accept();
+                    } catch (SocketTimeoutException exc) {
+                        // checking server stop flag if timeout is expired
+                        continue;
+                    }
+
+                    // creating connection and adding it to connection list
+                    Connection link = new Connection(usrSocket, clientsCounter);
+                    connectList.add(link);
+
+                    ++clientsCounter;
+
+                    // executing connection in separate thread
+                    // link.start();
+                    new Thread(link, CONNECTION_THREAD_NAME +
+                                     link.getClientID()).start();
+                }
+            } finally {
+                synchronized (connectList) {
+                    //connectList.forEach(Connection::close);
+                    connectList.forEach(Connection::stop);
+                }
+            }
+        } catch (IOException exc) {
+            log.log(Level.SEVERE, "Server error: Problems while listening on " +
                    "port = " + portNumber, exc);
-           System.exit(SERVER_EXIT_CODE);
-       }
-   }
+        }
+    }
 
     /**
      * Single client connection. Performs client messages processing via method
      * specified by server's field "responder"
-     *
-     * @author Sergey Sokhnyshev
      */
-    class Connection extends Thread {
-        private static final int CONNECTION_EXIT_CODE = 4;  // exit code
-        private static final String THREAD_NAME = "ConnectionThread";
-        private static final String WELCOME_MSG = "You are successfully " +
-                                                  "connected to server!";
-        private static final String QUIT_MSG = "User \"%s\" is disconnected\n";
+    class Connection implements Runnable {
         // socket for client connection created and listed by server
-        private Socket socket;
+        private final Socket socket;
 
-        private String usrName = "";       // client's name
-        private int clientID = DEFAULT_ID; // client ID
+        private String usrName = "";  // client's name
+        private final int clientID;   // client ID
 
         // logger for tracing error messages
         private final Logger log = Logger.getLogger(Client.class.getName());
@@ -99,11 +155,9 @@ public class Server {
          * @param socket - socket instance obtained by invoking
          *                 "server.accept()"
          */
-        Connection(Socket socket) {
-            super(THREAD_NAME + Server.this.clientsCounter);
+        Connection(Socket socket, int clientID) {
             this.socket = socket;
-
-            clientID = Server.this.clientsCounter++;
+            this.clientID = clientID;
         }
 
         /**
@@ -114,43 +168,47 @@ public class Server {
         @Override
         public void run() {
             try (
-                DataOutputStream out = new DataOutputStream(
-                        new BufferedOutputStream(socket.getOutputStream()));
-                DataInputStream in = new DataInputStream(
-                        new BufferedInputStream(socket.getInputStream()))
+                ObjectOutputStream out = new ObjectOutputStream(
+                                             socket.getOutputStream());
+                ObjectInputStream in = new ObjectInputStream(
+                                           socket.getInputStream())
             ) {
                 String svrMsg;  // sending server message
 
                 //getting client name
-                CommandTraits recCmd = Command.receive(in);
-                usrName = recCmd.msg;
+                MessageTraits recMsg = new MessageTraits();
+                recMsg.receive(in);
 
-                System.out.println("Hello, " + usrName + "! " + WELCOME_MSG);
-                out.write(Command.pack(new CommandTraits(WELCOME_MSG,
-                                                         clientID)));
-                out.flush();
+                usrName = recMsg.getMessage();
+
+                log.info(String.format(CONNECTION_GREETENG_MSG +
+                                       CONNECTION_WELCOME_MSG, usrName));
+
+                MessageTraits sentMsg = new MessageTraits();
+                sentMsg.setClientID(clientID);
+                sentMsg.setMessage(CONNECTION_WELCOME_MSG);
+
+                sentMsg.send(out);
 
                 // getting and decoding command from client's side
-                while (!(recCmd = Command.receive(in)).isEOF) {
-                    System.out.println(usrName + ": " + recCmd.msg);
-                    if(QUIT_CMD.equals(recCmd.msg)) {
-                        System.out.printf(QUIT_MSG, usrName);
+                while (recMsg.receive(in) != -1) {
+                    log.info(usrName + ": " + recMsg.getMessage());
+
+                    if(QUIT_CMD.equals(recMsg.getMessage())) {
+                        log.info(String.format(CONNECTION_QUIT_MSG, usrName));
                         break;
                     }
 
-                    synchronized (listener) {
-                        svrMsg = listener.onProcess(recCmd.msg, this);
-                    }
+                    svrMsg = listener.onProcess(recMsg.getMessage(), this);
 
-                    out.write(Command.pack(new CommandTraits(svrMsg, clientID)));
-                    out.flush();
+                    sentMsg.setMessage(svrMsg);
+                    sentMsg.send(out);
                 }
             } catch (IOException exc) {
                 log.log(Level.SEVERE, (usrName.isEmpty() ?
                         "Unestablished connection" : "Connection with user \"" +
                         usrName + "\"") + " error: problems with I/O while " +
                         "messages exchange is proceeded", exc);
-                System.exit(CONNECTION_EXIT_CODE);
             } finally {
                 close();
             }
@@ -167,14 +225,18 @@ public class Server {
          * @return total connections number
          */
         final int getConnectionsNumber() {
-            return Server.this.connectList.size();
+            synchronized (connectList) {
+                return Server.this.connectList.size();
+            }
         }
 
         /**
          * @return index of this connection in general server connections list
          */
         final int getConnectionIndex() {
-            return Server.this.connectList.indexOf(this);
+            synchronized (connectList) {
+                return Server.this.connectList.indexOf(this);
+            }
         }
 
         /**
@@ -185,31 +247,46 @@ public class Server {
         }
 
         /**
+         * Stops and closes given connection
+         */
+        void stop() {
+            try {
+                socket.shutdownInput();
+            } catch (IOException exc) {
+                log.log(Level.SEVERE, "Connection error: unexpected error " +
+                        "is occured while shutting down socket input stream",
+                        exc);
+            }
+        }
+
+        /**
          * Closes socket corresponding to given connection instance
          */
         void close() {
             try {
-                socket.close();
+                if (!socket.isClosed()) {
+                    socket.close();
+                }
 
                 // removing current connection from list
                 // switching server off if list is empty
                 synchronized (connectList) {
                     connectList.remove(this);
                     if (connectList.isEmpty()) {
-                        System.out.println("No active connections: " +
-                                "waiting for user connections");
+                        log.info(NO_CONNECTION_MSG);
                     }
                 }
             } catch (IOException exc) {
                 log.log(Level.SEVERE, "Connection error: Unable to close " +
                         "socket", exc);
-                System.exit(CONNECTION_EXIT_CODE);
             }
         }
     }
 
     public static void main(String[] args) {
-        ConfigReader cfgReader = new ConfigReader("../files/config.xml", true);
-        new Server(cfgReader.getPortNumber(), new AIServerListener());
+        ConfigReader cfgReader = new ConfigReader();
+        cfgReader.parse("../files/config.xml", true);
+
+        Server.start(cfgReader.getPortNumber(), new AIServerListener());
     }
 }

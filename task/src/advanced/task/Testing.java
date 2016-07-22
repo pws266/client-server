@@ -3,6 +3,7 @@ package advanced.task;
 import java.io.*;
 import java.util.*;
 import java.util.concurrent.BrokenBarrierException;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.CyclicBarrier;
 import java.util.logging.Level;
 import java.util.logging.LogManager;
@@ -67,27 +68,20 @@ class EchoServerListener implements ServerListener {
  * Generates command list and automatically send its.
  */
 class ClientThread implements Runnable {
-    // different sizes of sent and received command lists
-    static final int SZ_MISMATCH = -1;
     // set of possible client names
     private static int clientCounter = 0;  // clients counter
-    private static final String THREAD_NAME = "ClientThread";
-    private static final int CLIENT_THREAD_EXIT_CODE = 7;  // exit code
-    private static final List<String> USER_NAME = Collections.synchronizedList(
-            Arrays.asList("Bob", "Alice", "Jane", "Maga", "Paul", "George",
-                          "Fergie", "Nicole", "Alex", "Britney", "Doro"));
 
     // commands set for sending
     private final List<String> cmdList = new ArrayList<>();
     private final CyclicBarrier cb;      // cyclic barrier for further commands
                                          // statistic computation
-    private int clientID;  // client thread unique number
-    private int cmdNumber; // commands number for transmission
+    private final int clientID;  // client thread unique number
+    private final int cmdNumber; // commands number for transmission
 
-    private String hostName;  // server's host name
-    private int portNumber;   // server's port number
+    private final String hostName;  // server's host name
+    private final int portNumber;   // server's port number
 
-    private List<String> recCmdList = new ArrayList<>();
+    private final List<String> recCmdList = new ArrayList<>();
 
     // logger for tracing error messages
     private static final Logger log = Logger.getLogger(
@@ -101,11 +95,13 @@ class ClientThread implements Runnable {
 
         // adding client's name from list
 
-        cmdList.add(USER_NAME.get(rnd.nextInt(USER_NAME.size())) + '\n');
+        cmdList.add(TESTING_USER_NAME.get(rnd.nextInt(
+                                          TESTING_USER_NAME.size())) + '\n');
 
         // adding transmitting commands set
         for (int i = 0; i < cmdNumber; ++i) {
-            cmdList.add(USER_CMD.get(rnd.nextInt(USER_CMD.size())) + '\n');
+            cmdList.add(KNOWN_CMD.get(rnd.nextInt(KNOWN_CMD.size())).getToken()
+                        + '\n');
         }
 
         //adding "quit" command terminating client operation
@@ -133,7 +129,7 @@ class ClientThread implements Runnable {
         this.cb = cb;
         clientID = clientCounter++;
 
-        new Thread(this, THREAD_NAME + clientID).start();
+        new Thread(this, TESTING_CLIENT_THREAD_NAME + clientID).start();
     }
 
     /**
@@ -160,7 +156,6 @@ class ClientThread implements Runnable {
         } catch (IOException exc) {
             log.log(Level.SEVERE, "ClientThread error: unable to save " +
                     "command for input stream ", exc);
-            System.exit(CLIENT_THREAD_EXIT_CODE);
         }
 
         // creating and executing client
@@ -215,43 +210,20 @@ class ClientThread implements Runnable {
 }
 
 /**
- * Server wrapper allowing execution in separate thread for testing purposes.
- * Receives and sends back commands from connected clients.
- */
-class ServerThread implements Runnable {
-    private final String cfgFileName;   // configuration file name
-
-    /**
-     * Constructor for server wrapper
-     * @param cfgFileName - *.xml configuration file path and file name
-     */
-    ServerThread(String cfgFileName) {
-        this.cfgFileName = cfgFileName;
-    }
-
-    /**
-     * Thread function performing server execution
-     * @see java.lang.Runnable#run()
-     */
-    @Override
-    public void run() {
-        ConfigReader cfgReader = new ConfigReader(cfgFileName, true);
-        new Server(cfgReader.getPortNumber(), new EchoServerListener());
-    }
-}
-/**
  * Commands mismatch computer for each client connected to server.
  * Executes by cyclic barrier.
  */
 class ErrorComputer implements Runnable {
     private final List<ClientThread> client;  // set of client threads
+    private final CountDownLatch stopServer;
 
     /**
      * Constructor of errors computer
      * @param client - client thread list for errors computation
      */
-    ErrorComputer(List<ClientThread> client) {
+    ErrorComputer(List<ClientThread> client, CountDownLatch stopServer) {
         this.client = client;
+        this.stopServer = stopServer;
     }
 
     /**
@@ -275,7 +247,7 @@ class ErrorComputer implements Runnable {
             sumErrorsNumber += currentErrorsNumber;
 
             if (currentErrorsNumber != 0) {
-                if (currentErrorsNumber == ClientThread.SZ_MISMATCH) {
+                if (currentErrorsNumber == SZ_MISMATCH) {
                     System.out.println("User ID: " + i +
                                        " command list sizes mismatch");
                 }
@@ -290,7 +262,7 @@ class ErrorComputer implements Runnable {
             System.out.println("All commands are received correctly!");
         }
 
-        System.exit(0);
+        stopServer.countDown();
     }
 }
 
@@ -301,10 +273,6 @@ class ErrorComputer implements Runnable {
  * The received commands are compared on client side with sent commands,
  */
 public class Testing {
-    private static final int CMD_LINE_ARGS_NUMBER = 6;  // arguments number
-    private static final int CMD_LINE_KEYS_NUMBER = 3;  // correct keys number
-    private static final int TESTING_EXIT_CODE = 8;     // exit code
-
     // logger for tracing error messages
     private static final Logger log = Logger.getLogger(Testing.class.getName());
 
@@ -322,7 +290,6 @@ public class Testing {
         } catch (IOException exc) {
             log.log(Level.SEVERE, "Error: unable to read logging " +
                     "configuration file", exc);
-            System.exit(TESTING_EXIT_CODE);
         }
 
         // creating folder for logging
@@ -335,10 +302,59 @@ public class Testing {
 
                 // attempting to create folder for logs
                 MainCore.createLoggingFolder(logTraits, log);
-            } catch (IOException exc){
+            } catch (IOException exc) {
                 log.log(Level.SEVERE, "Error: unable to read/load logging " +
                         "configuration file", exc);
-                System.exit(TESTING_EXIT_CODE);
+            }
+        }
+    }
+
+    /**
+     * Command line keys and arguments parser
+     */
+    private static class CmdLineTraits {
+        String cfgFileName = "";  // *.xml configuration file name
+
+        int usrNumber = 10;       // clients number in test
+        int cmdNumber = 100;      // commands number sending by each client
+
+        /**
+         * Parses command line to appropriate keys and values.
+         * Performs simple verification of command line content
+         * @param args - command line for parsing
+         * @throws Exception
+         */
+        void parse(String[] args) {
+            int correctKeysNumber = 0;
+
+            try {
+                for (int i = 0; i < args.length; ++i) {
+                    if ("-config".equals(args[i])) {
+                        cfgFileName = args[++i];
+                        ++correctKeysNumber;
+
+                        continue;
+                    }
+
+                    if ("-usr".equals(args[i])) {
+                        usrNumber = Integer.parseInt(args[++i]);
+                        ++correctKeysNumber;
+
+                        continue;
+                    }
+
+                    if ("-cmd".equals(args[i])) {
+                        cmdNumber = Integer.parseInt(args[++i]);
+                        ++correctKeysNumber;
+                    }
+                }
+
+                if (correctKeysNumber != TESTING_CMD_LINE_KEYS_NUMBER) {
+                    throw new Exception("Illegal keys in command " +
+                            "line. Correct keys number: " + correctKeysNumber);
+                }
+            } catch (Exception exc) {
+                log.log(Level.SEVERE, "Wrong arguments command line format", exc);
             }
         }
     }
@@ -348,63 +364,51 @@ public class Testing {
         enableLogging();
 
         // checking arguments number in command line
-        MainCore.checkCmdLineArgNumber(args.length, CMD_LINE_ARGS_NUMBER, log,
-                                       TESTING_ANNOTATION, TESTING_EXIT_CODE);
-        // reading arguments
-        String cfgFileName = "";  //configuration file name
-        int usrNumber = 10;       // clients number in test
-        int cmdNumber = 100;       // commands number sending by each client
-                                  // to server
-        int correctKeysNumber = 0;
+        MainCore.checkCmdLineArgNumber(args.length,
+                                       TESTING_CMD_LINE_ARGS_NUMBER,
+                                       log, TESTING_ANNOTATION);
+        // parsing command line keys and arguments
+        CmdLineTraits cmdLine = new CmdLineTraits();
+        cmdLine.parse(args);
 
-        try {
-            for (int i = 0; i < args.length; ++i) {
-                if ("-config".equals(args[i])) {
-                    cfgFileName = args[++i];
-                    ++correctKeysNumber;
-
-                    continue;
-                }
-
-                if ("-usr".equals(args[i])) {
-                    usrNumber = Integer.parseInt(args[++i]);
-                    ++correctKeysNumber;
-
-                    continue;
-                }
-
-                if ("-cmd".equals(args[i])) {
-                    cmdNumber = Integer.parseInt(args[++i]);
-                    ++correctKeysNumber;
-                }
-            }
-
-            if (correctKeysNumber != CMD_LINE_KEYS_NUMBER) {
-                throw new Exception("Illegal keys in command " +
-                        "line. Correct keys number: " + correctKeysNumber);
-            }
-        } catch (Exception exc) {
-            log.log(Level.SEVERE, "Wrong arguments command line format", exc);
-            System.exit(TESTING_EXIT_CODE);
-        }
+        // latch for server stop tracking
+        final CountDownLatch srvStop = new CountDownLatch(1);
 
         // starting server
-        new Thread(new ServerThread(cfgFileName), "TestServerThread").start();
+        ConfigReader cfgReader = new ConfigReader();
+        cfgReader.parse(cmdLine.cfgFileName, true);
+
+        Server srv = new Server(cfgReader.getPortNumber(),
+                new EchoServerListener());
+        new Thread(srv, SERVER_THREAD_NAME).start();
 
         // creating and executing clients
-        ConfigReader cfgReader = new ConfigReader(cfgFileName, false);
-        List<ClientThread> client = new ArrayList<>(usrNumber);
+        cfgReader.parse(cmdLine.cfgFileName, false);
 
-        // creating cyclic barrier: declaring error computation invoking AFTER
-        // client's threads finalization
-        CyclicBarrier cb = new CyclicBarrier(usrNumber, new ErrorComputer(
-                                                            client));
+        List<ClientThread> client = new ArrayList<>(cmdLine.usrNumber);
+
+        // creating cyclic barrier: declaring error computation invoking
+        // AFTER client's threads finalization
+        CyclicBarrier cb = new CyclicBarrier(cmdLine.usrNumber,
+                new ErrorComputer(client, srvStop));
 
         // starting clients threads for connection to server and sending
         // random set of commands
-        for (int i = 0; i < usrNumber; ++i) {
-            client.add(new ClientThread(cmdNumber, cfgReader.getHostName(),
-                                      cfgReader.getPortNumber(), cb));
+        for (int i = 0; i < cmdLine.usrNumber; ++i) {
+            client.add(new ClientThread(cmdLine.cmdNumber,
+                                        cfgReader.getHostName(),
+                                        cfgReader.getPortNumber(), cb));
         }
+
+        // waiting for errors computation end
+        try {
+            srvStop.await();
+        } catch (InterruptedException exc) {
+            log.log(Level.SEVERE, "Testing error: thread is interrupted " +
+                                  "while waiting", exc);
+        }
+
+        // shutting down server
+        srv.stop();
     }
 }

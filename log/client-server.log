@@ -1,0 +1,63 @@
+Jul 22, 2016 7:53:23 PM advanced.task.MainCore main
+INFO: Server will be started
+Jul 22, 2016 7:53:23 PM advanced.task.MainCore main
+INFO: Configuration file name: files/config.xml
+Jul 22, 2016 7:53:23 PM advanced.task.MainCore logSystemInfo
+INFO: --------------------------------------------------------------------------
+Jul 22, 2016 7:53:23 PM advanced.task.MainCore logSystemInfo
+INFO: OS:
+ - name: Linux
+ - platform: amd64
+ - version: 4.2.0-42-generic
+
+Jul 22, 2016 7:53:23 PM advanced.task.MainCore logSystemInfo
+INFO: JRE:
+ - vendor: Oracle Corporation
+ - name: Java Platform API Specification
+ - version: 1.8
+
+Jul 22, 2016 7:53:23 PM advanced.task.MainCore logSystemInfo
+INFO: --------------------------------------------------------------------------
+Jul 22, 2016 7:53:23 PM advanced.task.Server start
+INFO: Type "stop" for server work termination
+Jul 22, 2016 7:53:23 PM advanced.task.Server run
+INFO: Server is successfully started!
+No active connections. Waiting for clients
+Jul 22, 2016 7:53:34 PM advanced.task.Server$Connection run
+INFO: Hello, Alex! You are successfully connected to server!
+Jul 22, 2016 7:53:44 PM advanced.task.Server$Connection run
+INFO: Alex: What time is it now?
+Jul 22, 2016 7:54:01 PM advanced.task.Server$Connection run
+INFO: Hello, Gloria! You are successfully connected to server!
+Jul 22, 2016 7:54:08 PM advanced.task.Server$Connection run
+INFO: Gloria: Hello!
+Jul 22, 2016 7:54:15 PM advanced.task.Server$Connection run
+INFO: Gloria: What's my name?
+Jul 22, 2016 7:54:26 PM advanced.task.Server$Connection run
+INFO: Gloria: ... and date?
+Jul 22, 2016 7:54:48 PM advanced.task.Server$Connection run
+INFO: Gloria: What's the total users number?
+Jul 22, 2016 7:55:01 PM advanced.task.Server$Connection run
+INFO: Gloria: What's my ID?
+Jul 22, 2016 7:55:11 PM advanced.task.Server$Connection run
+INFO: Gloria: What is my number?
+Jul 22, 2016 7:55:29 PM advanced.task.Server$Connection run
+INFO: Alex: What's my number?
+Jul 22, 2016 7:55:37 PM advanced.task.Server$Connection run
+INFO: Alex: Help me!
+Jul 22, 2016 7:55:41 PM advanced.task.Server$Connection run
+INFO: Alex: quit
+Jul 22, 2016 7:55:41 PM advanced.task.Server$Connection run
+INFO: User "Alex" is disconnected
+
+Jul 22, 2016 7:55:56 PM advanced.task.Server$Connection run
+INFO: Gloria: What's my number?
+Jul 22, 2016 7:56:08 PM advanced.task.Server$Connection run
+INFO: Gloria: Total number of users...
+Jul 22, 2016 7:56:12 PM advanced.task.Server$Connection run
+INFO: Gloria: quit
+Jul 22, 2016 7:56:12 PM advanced.task.Server$Connection run
+INFO: User "Gloria" is disconnected
+
+Jul 22, 2016 7:56:12 PM advanced.task.Server$Connection close
+INFO: No active connections. Waiting for clients

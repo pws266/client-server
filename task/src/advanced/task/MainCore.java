@@ -7,8 +7,7 @@ import java.util.logging.Level;
 import java.util.logging.LogManager;
 import java.util.logging.Logger;
 
-import static advanced.task.Info.LOG_RESOURCE_FILE_PATH;
-import static advanced.task.Info.MAIN_ANNOTATION;
+import static advanced.task.Info.*;
 
 /**
  * Class for client or server execution.
@@ -22,16 +21,12 @@ class MainCore {
     // logger for tracing error messages
     private static final Logger log = Logger.getLogger(MainCore.class.getName());
 
-    // correct command line parameters
-    private static final int CMD_LINE_ARGS_NUMBER = 3;  // arguments number
-    private static final int CMD_LINE_KEYS_NUMBER = 2;  // correct keys number
-    private static final int MAIN_EXIT_CODE = 1;        // exit code
-
     /**
      * Attempts to create folder for *.log - files
      * @param logTraits - logging properties loaded as resource
      */
-    static void createLoggingFolder(Properties logTraits, Logger log) {
+    static void createLoggingFolder(Properties logTraits,
+                                    Logger log) {
         try {
             String logPattern = logTraits.getProperty(
                     "java.util.logging.FileHandler.pattern");
@@ -48,7 +43,6 @@ class MainCore {
             }
         } catch (Exception exc) {
             log.log(Level.SEVERE, "Error: no log folder was created: ", exc);
-            System.exit(MAIN_EXIT_CODE);
         }
     }
 
@@ -66,7 +60,6 @@ class MainCore {
         } catch (IOException exc) {
             log.log(Level.SEVERE, "Error: unable to read logging " +
                     "configuration file", exc);
-            System.exit(MAIN_EXIT_CODE);
         }
 
         // creating folder for logging
@@ -82,9 +75,29 @@ class MainCore {
             } catch (IOException exc){
                 log.log(Level.SEVERE, "Error: unable to read/load logging " +
                         "configuration file", exc);
-                System.exit(MAIN_EXIT_CODE);
             }
         }
+    }
+
+    /**
+     * Logging information about JRE and OS in
+     */
+    private static void logSystemInfo() {
+        // saving information to log about OS and JRE
+        log.info(LOG_SEPARATOR);
+
+        log.info("OS:\n - name: " + System.getProperty("os.name") +
+                 "\n - platform: " + System.getProperty("os.arch") +
+                 "\n - version: " + System.getProperty("os.version") + "\n");
+
+        log.info("JRE:\n - vendor: " +
+                 System.getProperty("java.specification.vendor") +
+                 "\n - name: " +
+                 System.getProperty("java.specification.name") +
+                 "\n - version: " +
+                 System.getProperty("java.specification.version") + "\n");
+
+        log.info(LOG_SEPARATOR);
     }
 
     /**
@@ -92,75 +105,90 @@ class MainCore {
      * @param argNumber - arguments number in command line
      * @param correctArgNumber - correct arguments number in command line
      * @param annotation - brief usage program description with arguments notice
-     * @param exitCode - value of exit code
      */
     static void checkCmdLineArgNumber(int argNumber, int correctArgNumber,
-                               Logger log, String annotation, int exitCode) {
+                               Logger log, String annotation) {
         try {
             if (argNumber != correctArgNumber) {
                 throw new Exception("Illegal command line arguments number");
             }
         } catch (Exception exc) {
             log.log(Level.SEVERE, annotation, exc);
-            System.exit(exitCode);
         }
     }
 
+    /**
+     * Command line keys and arguments parser
+     */
+    private static class CmdLineTraits {
+        String cfgFileName = "";    // *.xml configuration file name
+        // notification flag for server/client execution
+        boolean isServer = false;
+
+        /**
+         * Parses command line to appropriate keys and values.
+         * Performs simple verification of command line content
+         * @param args - command line for parsing
+         */
+        void parse(String[] args) {
+            int correctKeysNumber = 0;
+
+            try {
+                for (int i = 0; i < args.length; ++i) {
+                    if ("-config".equals(args[i])) {
+                        cfgFileName = args[++i];
+                        ++correctKeysNumber;
+
+                        continue;
+                    }
+
+                    if ("-server".equals(args[i])) {
+                        isServer = true;
+                        ++correctKeysNumber;
+                    } else if ("-client".equals(args[i])) {
+                        isServer = false;
+                        ++correctKeysNumber;
+                    }
+                }
+
+                if (correctKeysNumber != CMD_LINE_KEYS_NUMBER) {
+                    throw new Exception("Illegal keys in command " +
+                            "line. Correct keys number: " + correctKeysNumber);
+                }
+            } catch (Exception exc) {
+                log.log(Level.SEVERE, "Wrong arguments command line format", exc);
+            }
+        }
+    }
 
     public static void main(String[] args) {
         // enabling logging
         enableLogging();
 
         // checking arguments number in command line
-        checkCmdLineArgNumber(args.length, CMD_LINE_ARGS_NUMBER, log,
-                              MAIN_ANNOTATION, MAIN_EXIT_CODE);
+        checkCmdLineArgNumber(args.length, CMD_LINE_ARGS_NUMBER,
+                              log, MAIN_ANNOTATION);
+        // parsing command line keys and arguments
+        CmdLineTraits cmdLine = new CmdLineTraits();
+        cmdLine.parse(args);
 
-        // reading arguments
-        String cfgFileName = "";
-        boolean isServer = false;
-        int correctKeysNumber = 0;
-
-        try {
-            for (int i = 0; i < args.length; ++i) {
-                if ("-config".equals(args[i])) {
-                    cfgFileName = args[++i];
-                    ++correctKeysNumber;
-
-                    continue;
-                }
-
-                if ("-server".equals(args[i])) {
-                    isServer = true;
-                    ++correctKeysNumber;
-                } else if ("-client".equals(args[i])) {
-                    isServer = false;
-                    ++correctKeysNumber;
-                }
-            }
-
-            if (correctKeysNumber != CMD_LINE_KEYS_NUMBER) {
-                throw new Exception("Illegal keys in command " +
-                        "line. Correct keys number: " + correctKeysNumber);
-            }
-        } catch (Exception exc) {
-            log.log(Level.SEVERE, "Wrong arguments command line format", exc);
-            System.exit(MAIN_EXIT_CODE);
-        }
-
-        System.out.println("Server: " + isServer);
-        System.out.println("Config: " + cfgFileName);
+        log.info((cmdLine.isServer ? "Server" : "Client") +
+                 " will be started");
+        log.info("Configuration file name: " + cmdLine.cfgFileName);
 
         // reading specified *.xml - configuration file
-        ConfigReader cfgReader = new ConfigReader(cfgFileName, isServer);
+        ConfigReader cfgReader = new ConfigReader();
+        cfgReader.parse(cmdLine.cfgFileName, cmdLine.isServer);
 
         // starting server
-        if (isServer) {
-            new Server(cfgReader.getPortNumber(), new AIServerListener());
+        if (cmdLine.isServer) {
+            logSystemInfo();
+            Server.start(cfgReader.getPortNumber(), new AIServerListener());
         }
         // or client
         else {
             Client client = new Client(cfgReader.getHostName(),
-                                       cfgReader.getPortNumber(), System.in);
+                    cfgReader.getPortNumber(), System.in);
             client.go(new SimpleClientListener());
         }
     }

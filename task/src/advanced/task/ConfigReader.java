@@ -13,6 +13,12 @@ import java.io.IOException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import static advanced.task.Info.CONFIG_TAG;
+import static advanced.task.Info.SERVER_TAG;
+import static advanced.task.Info.CLIENT_TAG;
+import static advanced.task.Info.PORT_TAG;
+import static advanced.task.Info.HOST_TAG;
+
 /**
  * Configuration file reader.
  * Parses specified *.xml - file and stores parameters for client and server
@@ -22,35 +28,21 @@ import java.util.logging.Logger;
  * Created on 14.06.16.
  */
 class ConfigReader {
-    private static final int CONFIG_EXIT_CODE = 5;  // exit code
-
-    // tags for XML configuration file parsing
-    private static final String CONFIG_TAG = "config";
-
-    private static final String SERVER_TAG = "server";
-    private static final String CLIENT_TAG = "client";
-
-    private static final String PORT_TAG = "port";
-
-    private static final String HOST_TAG = "ServerHost";
-
-    // client/server port number
-    private int portNumber = 0;
-    // host name for client's usage
-    private String hostName;
+    private int portNumber = 0; // client/server port number
+    private String hostName;    // host name for client's usage
 
     // logger for tracing error messages
     private static final Logger log = Logger.getLogger(
                                              ConfigReader.class.getName());
 
     /**
-     * Constructor reads parameters from specified *.xml configuration file
+     * Reads parameters from specified *.xml configuration file
      *
      * @param cfgFileName - path and name of *.xml configuration file
      * @param isServer - defines the appropriate section in configuration
-     *                      file corresponding to client or server
+     *                   file corresponding to client or server
      */
-    ConfigReader(String cfgFileName, boolean isServer) {
+    void parse(String cfgFileName, boolean isServer) {
         File cfgFile = new File(cfgFileName);
 
         try {
@@ -98,15 +90,12 @@ class ConfigReader {
         } catch(ParserConfigurationException exc) {
             log.log(Level.SEVERE, "ConfigReader error: unable to get DOM " +
                     "document instance from XML", exc);
-            System.exit(CONFIG_EXIT_CODE);
         } catch(org.xml.sax.SAXException exc) {
             log.log(Level.SEVERE, "ConfigReader error: unable to parse given " +
                     "XML content", exc);
-            System.exit(CONFIG_EXIT_CODE);
         } catch(IOException exc) {
             log.log(Level.SEVERE, "ConfigReader error: some I/O problems " +
                     "occur while parsing XML", exc);
-            System.exit(CONFIG_EXIT_CODE);
         }
     }
 

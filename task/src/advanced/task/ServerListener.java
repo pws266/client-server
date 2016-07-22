@@ -1,8 +1,6 @@
 package advanced.task;
 
 import java.text.SimpleDateFormat;
-import java.util.Date;
-
 import static advanced.task.Info.*;
 
 /**
@@ -28,6 +26,174 @@ interface ServerListener {
  */
 class AIServerListener implements ServerListener {
     /**
+     * Interface for request processing specified by received known client's
+     * token performing on server side
+     * @param <T> - returned value type substituting in response
+     */
+    interface Action<T> {
+        /**
+         * Client's request processing specified by received known token
+         * @param connection - reference on connection associated with given
+         *                     client
+         * @return result of request processing on server side
+         */
+        T make(Server.Connection connection);
+    }
+
+    /**
+     * Request for getting client's name
+     */
+    class UserNameAction implements Action<String> {
+        /**
+         * Client's name request processing
+         * @param connection - reference on connection associated with given
+         *                     client
+         * @return client's name corresponding to given connection
+         */
+        @Override
+        public String make(Server.Connection connection) {
+            return connection.getUsrName();
+        }
+    }
+
+    /**
+     * Request for getting current time/date from server
+     */
+    class TimeAction implements Action<String> {
+        private final SimpleDateFormat time;  // instance for time/date format
+
+        /**
+         * Constructor assigning specified time/date format pattern
+         * @param pattern - time/date pattern for output
+         */
+        TimeAction(String pattern) {
+            time = new SimpleDateFormat(pattern);
+        }
+
+        /**
+         * Current time/date request processing
+         * @param connection - reference on connection associated with given
+         *                     client
+         * @return current time/date in string representation according to
+         *         specified format
+         */
+        @Override
+        public String make(Server.Connection connection) {
+            synchronized (time) {
+                return time.format(System.currentTimeMillis());
+            }
+        }
+    }
+
+    /**
+     * Request for getting total connections number to server
+     */
+    class TotalConnectionsAction implements Action<Integer> {
+        /**
+         * Total connections number request processing
+         * @param connection - reference on connection associated with given
+         *                     client
+         * @return total connections number
+         */
+        @Override
+        public Integer make(Server.Connection connection) {
+            return connection.getConnectionsNumber();
+        }
+    }
+
+    /**
+     * Request for getting given connection index in connections pool
+     */
+    class ConnectionIndexAction implements Action<String> {
+        /**
+         * Connection index request processing
+         * @param connection - reference on connection associated with given
+         *                     client
+         * @return connections index in connections pool on server side
+         */
+        @Override
+        public String make(Server.Connection connection) {
+            int connectionIndex = connection.getConnectionIndex();
+            return connectionIndex == CMD_NOT_FOUND ? "not found" :
+                                          Integer.toString(connectionIndex);
+        }
+    }
+
+    /**
+     * Request for getting client's ID number
+     */
+    class ClientIDAction implements Action<Integer> {
+        /**
+         * Client's ID numberrequest processing
+         * @param connection - reference on connection associated with given
+         *                     client
+         * @return client's ID number specified by given connection
+         */
+        @Override
+        public Integer make(Server.Connection connection) {
+            return connection.getClientID();
+        }
+    }
+
+    /**
+     * Client's known command description
+     */
+    class UserCmd {
+        private final String token;     // command token
+        private String response;  // response on known token
+
+        private final Action action;    // request processing specified by token
+
+        /**
+         * Constructor creates known command description
+         * @param token - command token
+         * @param response - response preamble
+         * @param action - request processing corresponding to token
+         */
+        UserCmd(String token, String response, Action action) {
+            this.token = token;
+            this.response = response;
+
+            this.action = action;
+        }
+
+        /**
+         * Process request to server and forms response on appropriate token
+         * @param connection - reference on connection associated with given
+         *                     client
+         * @return complete response on received token including request
+         *         processing result
+         */
+        String getAnswer(Server.Connection connection) {
+            return action == null ? response :
+                                    String.format(response,
+                                                  action.make(connection));
+        }
+
+        /**
+         * @return command token
+         */
+        final String getToken() {
+            return token;
+        }
+
+        /**
+         * @return command response
+         */
+        final String getResponse() {
+            return response;
+        }
+
+        /**
+         * Assigns command response
+         * @param responce command response externally specified
+         */
+        void setResponse(String responce) {
+            this.response = responce;
+        }
+    }
+
+    /**
      * Generates server's response on received client message. Searches known
      * tokens in client message and creates answer based on its
      *
@@ -38,68 +204,12 @@ class AIServerListener implements ServerListener {
      */
     @Override
     public String onProcess(String msg, Server.Connection connection) {
-        int msgIndex = CMD_NOT_FOUND;
-        int cmdIndex = 0;
+        // searching specified token and reply in collection
+        UserCmd opt = KNOWN_CMD.stream()
+                .filter(t -> msg.toLowerCase().contains(t.getToken()))
+                .findAny()
+                .orElse(DEFAULT_CMD);
 
-        for(String cmd : USER_CMD) {
-            if ((msg != null) && msg.toLowerCase().contains(cmd)) {
-                msgIndex = cmdIndex;
-                break;
-            }
-
-            ++cmdIndex;
-        }
-
-        // return default message for unknown command case
-        if (msgIndex == CMD_NOT_FOUND) {
-            return DEFAULT_MSG;
-        }
-
-        // copying predefined server response message
-        String srvMsg = SERVER_MSG.get(msgIndex);
-
-        // forming server response message on known user command
-        switch (msgIndex) {
-            // greeting response
-            case 0: srvMsg += connection.getUsrName() + "!";
-                    break;
-            // client's name response
-            case 1: srvMsg += connection.getUsrName() + "\"";
-                    break;
-            // response to current time request
-            case 3: srvMsg += (new SimpleDateFormat("kk:mm:ss XXX")).
-                    format(new Date());
-                    break;
-            // response to current date request
-            case 4: srvMsg += (new SimpleDateFormat("EEE, MMM dd, yyyy")).
-                    format(new Date());
-                    break;
-            // response on total connections number request
-            case 6: srvMsg += Integer.toString(connection.
-                    getConnectionsNumber());
-                    break;
-            // response on user connection index request
-            case 7: int connectIndex = connection.getConnectionIndex();
-                    srvMsg += (connectIndex == CMD_NOT_FOUND) ?
-                        "not found! Oops!" : Integer.toString(connectIndex);
-                    break;
-            // response on user commands set request
-            case 8: StringBuffer cmdSet = new StringBuffer(srvMsg);
-
-                    for (String s : USER_CMD) {
-                        cmdSet.append("\n- ").append(s);
-                    }
-
-                    srvMsg = cmdSet.toString();
-                    break;
-
-            // response on client's ID request
-            case 9: srvMsg += Integer.toString(connection.getClientID());
-                    break;
-        }
-
-        return srvMsg;
+        return opt.getAnswer(connection);
     }
 }
-
-
