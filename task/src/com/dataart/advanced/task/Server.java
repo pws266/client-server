@@ -1,5 +1,6 @@
-package advanced.task;
+package com.dataart.advanced.task;
 
+import javax.xml.parsers.ParserConfigurationException;
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -7,10 +8,13 @@ import java.net.SocketTimeoutException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReadWriteLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import static advanced.task.Info.*;
+import static com.dataart.advanced.task.Info.*;
 
 /**
  * Simple multithread server for messages exchange with multiple clients.
@@ -28,6 +32,11 @@ public class Server implements Runnable {
 
     // connections list maintaining by server
     private final List<Connection> connectList;
+
+    // lock for access control to "connectList"
+    private final ReadWriteLock lock = new ReentrantReadWriteLock();
+    private final Lock readLock = lock.readLock();
+    private final Lock writeLock = lock.writeLock();
 
     // client commands processor (operates via callback)
     private final ServerListener listener;
@@ -54,11 +63,9 @@ public class Server implements Runnable {
         Server srv = new Server(portNumber, listener);
         new Thread(srv, SERVER_THREAD_NAME).start();
 
-        log.info(String.format("Type \"%s\" for server work termination",
-                               SERVER_STOP_CMD));
+        log.info(String.format("Type \"%s\" for server work termination", SERVER_STOP_CMD));
 
-        try ( BufferedReader cmdIn = new BufferedReader(
-                                         new InputStreamReader(System.in)) ) {
+        try ( BufferedReader cmdIn = new BufferedReader(new InputStreamReader(System.in)) ) {
             String stopCmd;
             while ((stopCmd = cmdIn.readLine()) != null) {
                 if (SERVER_STOP_CMD.compareToIgnoreCase(stopCmd) == 0) {
@@ -66,8 +73,7 @@ public class Server implements Runnable {
                 }
             }
         } catch (IOException exc) {
-            log.log(Level.SEVERE, "Server error: Problems while waiting " +
-                    "server stop command input", exc);
+            log.log(Level.SEVERE, "Server error: Problems while waiting server stop command input", exc);
         } finally {
             srv.stop();
         }
@@ -119,8 +125,7 @@ public class Server implements Runnable {
 
                     // executing connection in separate thread
                     // link.start();
-                    new Thread(link, CONNECTION_THREAD_NAME +
-                                     link.getClientID()).start();
+                    new Thread(link, CONNECTION_THREAD_NAME + link.getClientID()).start();
                 }
             } finally {
                 synchronized (connectList) {
@@ -129,8 +134,7 @@ public class Server implements Runnable {
                 }
             }
         } catch (IOException exc) {
-            log.log(Level.SEVERE, "Server error: Problems while listening on " +
-                   "port = " + portNumber, exc);
+            log.log(Level.SEVERE, "Server error: Problems while listening on port = " + portNumber, exc);
         }
     }
 
@@ -168,10 +172,8 @@ public class Server implements Runnable {
         @Override
         public void run() {
             try (
-                ObjectOutputStream out = new ObjectOutputStream(
-                                             socket.getOutputStream());
-                ObjectInputStream in = new ObjectInputStream(
-                                           socket.getInputStream())
+                ObjectOutputStream out = new ObjectOutputStream(socket.getOutputStream());
+                ObjectInputStream in = new ObjectInputStream(socket.getInputStream())
             ) {
                 String svrMsg;  // sending server message
 
@@ -181,8 +183,7 @@ public class Server implements Runnable {
 
                 usrName = recMsg.getMessage();
 
-                log.info(String.format(CONNECTION_GREETENG_MSG +
-                                       CONNECTION_WELCOME_MSG, usrName));
+                log.info(String.format(CONNECTION_GREETENG_MSG + CONNECTION_WELCOME_MSG, usrName));
 
                 MessageTraits sentMsg = new MessageTraits();
                 sentMsg.setClientID(clientID);
@@ -191,7 +192,7 @@ public class Server implements Runnable {
                 sentMsg.send(out);
 
                 // getting and decoding command from client's side
-                while (recMsg.receive(in) != -1) {
+                while (recMsg.receive(in) != DEFAULT_SZ) {
                     log.info(usrName + ": " + recMsg.getMessage());
 
                     if(QUIT_CMD.equals(recMsg.getMessage())) {
@@ -205,10 +206,8 @@ public class Server implements Runnable {
                     sentMsg.send(out);
                 }
             } catch (IOException exc) {
-                log.log(Level.SEVERE, (usrName.isEmpty() ?
-                        "Unestablished connection" : "Connection with user \"" +
-                        usrName + "\"") + " error: problems with I/O while " +
-                        "messages exchange is proceeded", exc);
+                log.log(Level.SEVERE, (usrName.isEmpty() ? "Unestablished connection" : "Connection with user \"" +
+                        usrName + "\"") + " error: problems with I/O while messages exchange is proceeded", exc);
             } finally {
                 close();
             }
@@ -225,8 +224,12 @@ public class Server implements Runnable {
          * @return total connections number
          */
         final int getConnectionsNumber() {
-            synchronized (connectList) {
+            readLock.lock();
+
+            try {
                 return Server.this.connectList.size();
+            } finally {
+                readLock.unlock();
             }
         }
 
@@ -234,8 +237,12 @@ public class Server implements Runnable {
          * @return index of this connection in general server connections list
          */
         final int getConnectionIndex() {
-            synchronized (connectList) {
+            readLock.lock();
+
+            try {
                 return Server.this.connectList.indexOf(this);
+            } finally {
+                readLock.unlock();
             }
         }
 
@@ -253,9 +260,8 @@ public class Server implements Runnable {
             try {
                 socket.shutdownInput();
             } catch (IOException exc) {
-                log.log(Level.SEVERE, "Connection error: unexpected error " +
-                        "is occured while shutting down socket input stream",
-                        exc);
+                log.log(Level.SEVERE, "Connection error: unexpected error is occured while shutting down socket " +
+                        "input stream", exc);
             }
         }
 
@@ -270,23 +276,33 @@ public class Server implements Runnable {
 
                 // removing current connection from list
                 // switching server off if list is empty
-                synchronized (connectList) {
+                writeLock.lock();
+                try {
                     connectList.remove(this);
                     if (connectList.isEmpty()) {
                         log.info(NO_CONNECTION_MSG);
                     }
+                } finally {
+                    writeLock.unlock();
                 }
             } catch (IOException exc) {
-                log.log(Level.SEVERE, "Connection error: Unable to close " +
-                        "socket", exc);
+                log.log(Level.SEVERE, "Connection error: Unable to close socket", exc);
             }
         }
     }
 
     public static void main(String[] args) {
-        ConfigReader cfgReader = new ConfigReader();
-        cfgReader.parse("../files/config.xml", true);
+        try {
+            ConfigReader cfgReader = new ConfigReader();
+            cfgReader.parse("../files/config.xml", true);
 
-        Server.start(cfgReader.getPortNumber(), new AIServerListener());
+            Server.start(cfgReader.getPortNumber(), new AIServerListener());
+        } catch(ParserConfigurationException exc) {
+            log.log(Level.SEVERE, "ConfigReader error: unable to get DOM document instance from XML", exc);
+        } catch(org.xml.sax.SAXException exc) {
+            log.log(Level.SEVERE, "ConfigReader error: unable to parse given XML content", exc);
+        } catch(IOException exc) {
+            log.log(Level.SEVERE, "ConfigReader error: some I/O problems occur while parsing XML", exc);
+        }
     }
 }

@@ -1,5 +1,6 @@
-package advanced.task;
+package com.dataart.advanced.task;
 
+import javax.xml.parsers.ParserConfigurationException;
 import java.io.*;
 import java.util.*;
 import java.util.concurrent.BrokenBarrierException;
@@ -9,7 +10,7 @@ import java.util.logging.Level;
 import java.util.logging.LogManager;
 import java.util.logging.Logger;
 
-import static advanced.task.Info.*;
+import static com.dataart.advanced.task.Info.*;
 
 /**
  * Server testing with multiple clients.
@@ -164,7 +165,7 @@ class ClientThread implements Runnable {
         StorageClientListener storage = new StorageClientListener();
         storage.setReceivedCmdList(recCmdList);
 
-        client.go(storage);
+        client.startExchange(storage);
 
         try {
             cb.await();
@@ -285,7 +286,7 @@ public class Testing {
         // Using "absolute" path
         try {
             LogManager.getLogManager().readConfiguration(
-                    advanced.task.Testing.class.getResourceAsStream(
+                    Testing.class.getResourceAsStream(
                             LOG_RESOURCE_FILE_PATH));
         } catch (IOException exc) {
             log.log(Level.SEVERE, "Error: unable to read logging " +
@@ -297,7 +298,7 @@ public class Testing {
             try {
                 //getting name of log folder
                 Properties logTraits = new Properties();
-                logTraits.load(advanced.task.Testing.class.getResourceAsStream(
+                logTraits.load(Testing.class.getResourceAsStream(
                         LOG_RESOURCE_FILE_PATH));
 
                 // attempting to create folder for logs
@@ -322,7 +323,6 @@ public class Testing {
          * Parses command line to appropriate keys and values.
          * Performs simple verification of command line content
          * @param args - command line for parsing
-         * @throws Exception
          */
         void parse(String[] args) {
             int correctKeysNumber = 0;
@@ -362,11 +362,14 @@ public class Testing {
     public static void main(String[] args) {
         // enabling logging
         enableLogging();
-
-        // checking arguments number in command line
-        MainCore.checkCmdLineArgNumber(args.length,
-                                       TESTING_CMD_LINE_ARGS_NUMBER,
-                                       log, TESTING_ANNOTATION);
+try {
+    // checking arguments number in command line
+    MainCore.checkCmdLineArgNumber(args.length,
+            TESTING_CMD_LINE_ARGS_NUMBER,
+            log, TESTING_ANNOTATION);
+} catch (Exception exc) {
+            log.log(Level.SEVERE, "Illegal command line arguments format", exc);
+}
         // parsing command line keys and arguments
         CmdLineTraits cmdLine = new CmdLineTraits();
         cmdLine.parse(args);
@@ -376,39 +379,51 @@ public class Testing {
 
         // starting server
         ConfigReader cfgReader = new ConfigReader();
-        cfgReader.parse(cmdLine.cfgFileName, true);
 
-        Server srv = new Server(cfgReader.getPortNumber(),
-                new EchoServerListener());
-        new Thread(srv, SERVER_THREAD_NAME).start();
-
-        // creating and executing clients
-        cfgReader.parse(cmdLine.cfgFileName, false);
-
-        List<ClientThread> client = new ArrayList<>(cmdLine.usrNumber);
-
-        // creating cyclic barrier: declaring error computation invoking
-        // AFTER client's threads finalization
-        CyclicBarrier cb = new CyclicBarrier(cmdLine.usrNumber,
-                new ErrorComputer(client, srvStop));
-
-        // starting clients threads for connection to server and sending
-        // random set of commands
-        for (int i = 0; i < cmdLine.usrNumber; ++i) {
-            client.add(new ClientThread(cmdLine.cmdNumber,
-                                        cfgReader.getHostName(),
-                                        cfgReader.getPortNumber(), cb));
-        }
-
-        // waiting for errors computation end
         try {
-            srvStop.await();
-        } catch (InterruptedException exc) {
-            log.log(Level.SEVERE, "Testing error: thread is interrupted " +
-                                  "while waiting", exc);
-        }
+            cfgReader.parse(cmdLine.cfgFileName, true);
 
-        // shutting down server
-        srv.stop();
+//            Server srv = new Server(cfgReader.getPortNumber(), new EchoServerListener());
+            Server srv = new Server(cfgReader.getPortNumber(), (String msg, Server.Connection connection) -> msg);
+            new Thread(srv, SERVER_THREAD_NAME).start();
+
+            // creating and executing clients
+            cfgReader.parse(cmdLine.cfgFileName, false);
+
+            List<ClientThread> client = new ArrayList<>(cmdLine.usrNumber);
+
+            // creating cyclic barrier: declaring error computation invoking
+            // AFTER client's threads finalization
+            CyclicBarrier cb = new CyclicBarrier(cmdLine.usrNumber,
+                    new ErrorComputer(client, srvStop));
+
+            // starting clients threads for connection to server and sending
+            // random set of commands
+            for (int i = 0; i < cmdLine.usrNumber; ++i) {
+                client.add(new ClientThread(cmdLine.cmdNumber,
+                        cfgReader.getHostName(),
+                        cfgReader.getPortNumber(), cb));
+            }
+
+            // waiting for errors computation end
+            try {
+                srvStop.await();
+            } catch (InterruptedException exc) {
+                log.log(Level.SEVERE, "Testing error: thread is interrupted " +
+                        "while waiting", exc);
+            }
+
+            // shutting down server
+            srv.stop();
+        } catch(ParserConfigurationException exc) {
+            log.log(Level.SEVERE, "ConfigReader error: unable to get DOM " +
+                    "document instance from XML", exc);
+        } catch(org.xml.sax.SAXException exc) {
+            log.log(Level.SEVERE, "ConfigReader error: unable to parse given " +
+                    "XML content", exc);
+        } catch(IOException exc) {
+            log.log(Level.SEVERE, "ConfigReader error: some I/O problems " +
+                    "occur while parsing XML", exc);
+        }
     }
 }

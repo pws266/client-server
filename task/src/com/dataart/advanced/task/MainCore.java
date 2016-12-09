@@ -1,5 +1,6 @@
-package advanced.task;
+package com.dataart.advanced.task;
 
+import javax.xml.parsers.ParserConfigurationException;
 import java.io.File;
 import java.io.IOException;
 import java.util.Properties;
@@ -7,7 +8,7 @@ import java.util.logging.Level;
 import java.util.logging.LogManager;
 import java.util.logging.Logger;
 
-import static advanced.task.Info.*;
+import static com.dataart.advanced.task.Info.*;
 
 /**
  * Class for client or server execution.
@@ -20,6 +21,11 @@ import static advanced.task.Info.*;
 class MainCore {
     // logger for tracing error messages
     private static final Logger log = Logger.getLogger(MainCore.class.getName());
+
+    // *.xml configuration file name
+    private static String cfgFileName = "";
+    // notification flag for server/client execution
+    private static boolean isServer = false;
 
     /**
      * Attempts to create folder for *.log - files
@@ -55,7 +61,7 @@ class MainCore {
         // Using "absolute" path
         try {
             LogManager.getLogManager().readConfiguration(
-                    advanced.task.MainCore.class.getResourceAsStream(
+                    MainCore.class.getResourceAsStream(
                             LOG_RESOURCE_FILE_PATH));
         } catch (IOException exc) {
             log.log(Level.SEVERE, "Error: unable to read logging " +
@@ -67,7 +73,7 @@ class MainCore {
             try {
                 //getting name of log folder
                 Properties logTraits = new Properties();
-                logTraits.load(advanced.task.MainCore.class.getResourceAsStream(
+                logTraits.load(MainCore.class.getResourceAsStream(
                         LOG_RESOURCE_FILE_PATH));
 
                 // attempting to create folder for logs
@@ -106,58 +112,43 @@ class MainCore {
      * @param correctArgNumber - correct arguments number in command line
      * @param annotation - brief usage program description with arguments notice
      */
-    static void checkCmdLineArgNumber(int argNumber, int correctArgNumber,
-                               Logger log, String annotation) {
-        try {
+    static void checkCmdLineArgNumber(int argNumber, int correctArgNumber, Logger log, String annotation) throws Exception{
+//        try {
             if (argNumber != correctArgNumber) {
-                throw new Exception("Illegal command line arguments number");
+                throw new Exception("Illegal command line arguments number\n" + annotation);
             }
-        } catch (Exception exc) {
-            log.log(Level.SEVERE, annotation, exc);
-        }
+//        } catch (Exception exc) {
+//            log.log(Level.SEVERE, annotation, exc);
+//        }
     }
 
     /**
-     * Command line keys and arguments parser
+     * Parses command line to appropriate keys and values.
+     * Performs simple verification of command line content
+     * @param args - command line for parsing
      */
-    private static class CmdLineTraits {
-        String cfgFileName = "";    // *.xml configuration file name
-        // notification flag for server/client execution
-        boolean isServer = false;
+    private static void parseCommandLine(String[] args) throws Exception {
+        int correctKeysNumber = 0;
 
-        /**
-         * Parses command line to appropriate keys and values.
-         * Performs simple verification of command line content
-         * @param args - command line for parsing
-         */
-        void parse(String[] args) {
-            int correctKeysNumber = 0;
+        for (int i = 0; i < args.length; ++i) {
+            if ("-config".equals(args[i])) {
+                cfgFileName = args[++i];
+                ++correctKeysNumber;
 
-            try {
-                for (int i = 0; i < args.length; ++i) {
-                    if ("-config".equals(args[i])) {
-                        cfgFileName = args[++i];
-                        ++correctKeysNumber;
-
-                        continue;
-                    }
-
-                    if ("-server".equals(args[i])) {
-                        isServer = true;
-                        ++correctKeysNumber;
-                    } else if ("-client".equals(args[i])) {
-                        isServer = false;
-                        ++correctKeysNumber;
-                    }
-                }
-
-                if (correctKeysNumber != CMD_LINE_KEYS_NUMBER) {
-                    throw new Exception("Illegal keys in command " +
-                            "line. Correct keys number: " + correctKeysNumber);
-                }
-            } catch (Exception exc) {
-                log.log(Level.SEVERE, "Wrong arguments command line format", exc);
+                continue;
             }
+
+            if ("-server".equals(args[i])) {
+                isServer = true;
+                ++correctKeysNumber;
+            } else if ("-client".equals(args[i])) {
+                isServer = false;
+                ++correctKeysNumber;
+            }
+        }
+
+        if (correctKeysNumber != CMD_LINE_KEYS_NUMBER) {
+            throw new Exception("Illegal keys in command line. Correct keys number: " + correctKeysNumber);
         }
     }
 
@@ -165,31 +156,42 @@ class MainCore {
         // enabling logging
         enableLogging();
 
-        // checking arguments number in command line
-        checkCmdLineArgNumber(args.length, CMD_LINE_ARGS_NUMBER,
-                              log, MAIN_ANNOTATION);
-        // parsing command line keys and arguments
-        CmdLineTraits cmdLine = new CmdLineTraits();
-        cmdLine.parse(args);
+        try {
+            // checking arguments number in command line
+            checkCmdLineArgNumber(args.length, CMD_LINE_ARGS_NUMBER, log, MAIN_ANNOTATION);
+            // parsing command line keys and arguments
+            parseCommandLine(args);
 
-        log.info((cmdLine.isServer ? "Server" : "Client") +
-                 " will be started");
-        log.info("Configuration file name: " + cmdLine.cfgFileName);
+            log.info((isServer ? "Server" : "Client") + " will be started");
+            log.info("Configuration file name: " + cfgFileName);
 
-        // reading specified *.xml - configuration file
-        ConfigReader cfgReader = new ConfigReader();
-        cfgReader.parse(cmdLine.cfgFileName, cmdLine.isServer);
+            // reading specified *.xml - configuration file
+            ConfigReader cfgReader = new ConfigReader();
 
-        // starting server
-        if (cmdLine.isServer) {
-            logSystemInfo();
-            Server.start(cfgReader.getPortNumber(), new AIServerListener());
-        }
-        // or client
-        else {
-            Client client = new Client(cfgReader.getHostName(),
-                    cfgReader.getPortNumber(), System.in);
-            client.go(new SimpleClientListener());
+            cfgReader.parse(cfgFileName, isServer);
+
+            // starting server
+            if (isServer) {
+                logSystemInfo();
+                Server.start(cfgReader.getPortNumber(), new AIServerListener());
+            }
+            // or client
+            else {
+                Client client = new Client(cfgReader.getHostName(),
+                        cfgReader.getPortNumber(), System.in);
+                client.startExchange(new SimpleClientListener());
+            }
+        } catch(ParserConfigurationException exc) {
+            log.log(Level.SEVERE, "ConfigReader error: unable to get DOM " +
+                    "document instance from XML", exc);
+        } catch(org.xml.sax.SAXException exc) {
+            log.log(Level.SEVERE, "ConfigReader error: unable to parse given " +
+                    "XML content", exc);
+        } catch(IOException exc) {
+            log.log(Level.SEVERE, "ConfigReader error: some I/O problems " +
+                    "occur while parsing XML", exc);
+        } catch (Exception exc) {
+            log.log(Level.SEVERE, "Wrong arguments command line format", exc);
         }
     }
 }

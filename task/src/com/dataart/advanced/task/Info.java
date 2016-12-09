@@ -1,4 +1,4 @@
-package advanced.task;
+package com.dataart.advanced.task;
 
 import java.util.*;
 
@@ -141,14 +141,14 @@ public class Info {
 
     // usage brief annotation for testing class
     public static final String TESTING_ANNOTATION = "Usage: java " +
-            "-classpath <path_to_package_folders> advanced.task.Testing\n" +
+            "-classpath <path_to_package_folders> Testing\n" +
             "-config <path_to_cfg_file/cfg file name.xml>\n" +
             "-usr <clients_number>\n" +
             "-cmd <commands_number_per_client>";
 
     // usage brief annotation foe main class
     public static final String MAIN_ANNOTATION = "Usage: java -classpath " +
-            "<path to package folders> advanced.task.MainCore\n" +
+            "<path to package folders> MainCore\n" +
             "-config <path to cfg file/cfg file name.xml>\n" +
             "<mode> (-client or -server)";
 

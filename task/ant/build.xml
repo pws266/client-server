@@ -49,7 +49,7 @@
 			 index="true">
 			<manifest>
 				<attribute name="Built-By" value="${java.user.name}" />
-				<attribute name="Main-Class" value="advanced.task.MainCore" />
+				<attribute name="Main-Class" value="MainCore" />
 				<section name="common">
 					<attribute name="Specification-Title" value="Java Advanced course task"/>
 					<attribute name="Specification-Version" value="${sw.version}"/>
@@ -71,7 +71,7 @@
 			 index="true">
 			<manifest>
 				<attribute name="Built-By" value="${java.user.name}" />
-				<attribute name="Main-Class" value="advanced.task.Testing" />
+				<attribute name="Main-Class" value="com.dataart.advanced.task.Testing" />
 				<section name="common">
 					<attribute name="Specification-Title" value="Java Advanced course task, testing"/>
 					<attribute name="Specification-Version" value="${sw.version}"/>

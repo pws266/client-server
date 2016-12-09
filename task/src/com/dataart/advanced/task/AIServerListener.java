@@ -1,28 +1,18 @@
-package advanced.task;
+package com.dataart.advanced.task;
 
 import java.text.SimpleDateFormat;
-import static advanced.task.Info.*;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 
-/**
- * Interface for clients messages processing received by server
- *
- * @author Sergey Sokhnyshev
- * Created on 06.07.16.
- */
-interface ServerListener {
-    /**
-     * Generates server's response on received client message
-     *
-     * @param msg - received client message
-     * @param connection - reference to connection with client for AI response
-     *                     forming
-     * @return server response message
-     */
-    String onProcess(String msg, Server.Connection connection);
-}
+import static com.dataart.advanced.task.Info.CMD_NOT_FOUND;
+import static com.dataart.advanced.task.Info.DEFAULT_CMD;
+import static com.dataart.advanced.task.Info.KNOWN_CMD;
 
 /**
  * Clients messages processing implementation based on trivial AI
+ *
+ * @author Sergey Sokhnyshev
+ * Created on 14.11.16.
  */
 class AIServerListener implements ServerListener {
     /**
@@ -61,6 +51,7 @@ class AIServerListener implements ServerListener {
      */
     class TimeAction implements Action<String> {
         private final SimpleDateFormat time;  // instance for time/date format
+        private final Lock readLock = new ReentrantReadWriteLock().readLock();
 
         /**
          * Constructor assigning specified time/date format pattern
@@ -79,8 +70,12 @@ class AIServerListener implements ServerListener {
          */
         @Override
         public String make(Server.Connection connection) {
-            synchronized (time) {
+            readLock.lock();
+
+            try{
                 return time.format(System.currentTimeMillis());
+            } finally {
+                readLock.unlock();
             }
         }
     }
@@ -115,7 +110,7 @@ class AIServerListener implements ServerListener {
         public String make(Server.Connection connection) {
             int connectionIndex = connection.getConnectionIndex();
             return connectionIndex == CMD_NOT_FOUND ? "not found" :
-                                          Integer.toString(connectionIndex);
+                    Integer.toString(connectionIndex);
         }
     }
 
@@ -166,8 +161,8 @@ class AIServerListener implements ServerListener {
          */
         String getAnswer(Server.Connection connection) {
             return action == null ? response :
-                                    String.format(response,
-                                                  action.make(connection));
+                    String.format(response,
+                            action.make(connection));
         }
 
         /**
