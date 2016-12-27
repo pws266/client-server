@@ -60,8 +60,6 @@ public class Info {
                 put("\\r", "\r");
                 put("\\0", "\0");
     }};
-    // client's farewell message
-    public static final String CLIENT_QUIT_MSG = "Disconnected. Bye";
     // tags for XML configuration file parsing
     // whole configuration section tag
     public static final String CONFIG_TAG = "config";
@@ -81,9 +79,8 @@ public class Info {
     // command for client disconnection
     public static final String QUIT_CMD = "quit";
     // default server reply for unknown command token
-    public static final AIServerListener.UserCmd DEFAULT_CMD =
-                  new AIServerListener().new UserCmd("", "Unknown command. " +
-                      "Should I consider it like a message to a world?", null);
+    public static final AIServerListener.UserCmd DEFAULT_CMD = new AIServerListener().new UserCmd("",
+                                         "Unknown command. Should I consider it like a message to a world?", null);
 
     public static final List<AIServerListener.UserCmd> KNOWN_CMD =
             Collections.synchronizedList(
@@ -91,35 +88,29 @@ public class Info {
                 AIServerListener ail = new AIServerListener();
 
                 // greeting
-                add(ail.new UserCmd("hello", "Hi, %s!",
-                                    ail.new UserNameAction()));
+                add(ail.new UserCmd("hello", "Hi, %s!", ail.new UserNameAction()));
                 // ask client's name
-                add(ail.new UserCmd("my name", "Hmm... you had introduced " +
-                                    "as \"%s\"", ail.new UserNameAction()));
+                add(ail.new UserCmd("my name", "Hmm... you had introduced as \"%s\"", ail.new UserNameAction()));
                 // ask server's name
-                add(ail.new UserCmd("your name", "\"You can call me Susan if " +
-                                    " it makes you happy\"(c)Snatch", null));
+                add(ail.new UserCmd("your name", "\"You can call me Susan if it makes you happy\"(c)Snatch", null));
                 // ask current time
-                add(ail.new UserCmd("time", "The current time is: %s",
-                        ail.new TimeAction("kk:mm:ss XXX")));
+                add(ail.new UserCmd("time", "The current time is: %s", ail.new TimeAction("kk:mm:ss XXX")));
                 // ask current date
-                add(ail.new UserCmd("date", "Today is: %s",
-                        ail.new TimeAction("EEE, MMM dd, yyyy")));
+                add(ail.new UserCmd("date", "Today is: %s", ail.new TimeAction("EEE, MMM dd, yyyy")));
                 // swear an oath
-                add(ail.new UserCmd("fuck", ":) ... Spielberg. Watch your " +
-                                    "tongue!", null));
+                add(ail.new UserCmd("fuck", ":) ... Spielberg. Watch your tongue!", null));
                 // ask total connections number
-                add(ail.new UserCmd("total", "Total connections number is: %d",
-                        ail.new TotalConnectionsAction()));
+                add(ail.new UserCmd("total", "Total connections number is: %d", ail.new TotalConnectionsAction()));
                 // ask connection index
-                add(ail.new UserCmd("my number", "Your connection index is: %s",
-                        ail.new ConnectionIndexAction()));
+                add(ail.new UserCmd("my number", "Your connection index is: %s", ail.new ConnectionIndexAction()));
                 // get maintained user commands set
-                add(ail.new UserCmd("help", "The commands could contain " +
-                        "these known tokens:\n- ", null));
+                add(ail.new UserCmd("help", "The commands could contain these known tokens:\n- ", null));
                 // get client's ID assigned by server
-                add(ail.new UserCmd("id", "Client's ID is: %d",
-                        ail.new ClientIDAction()));
+                add(ail.new UserCmd("id", "Client's ID is: %d", ail.new ClientIDAction()));
+                // quit
+                add(ail.new UserCmd(QUIT_CMD, "You are disconnected from server, %s! So long!",
+                    ail.new UserNameAction()));
+
             }});
 
     // constants for Testing - class

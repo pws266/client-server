@@ -149,6 +149,8 @@ public class Server implements Runnable {
         private String usrName = "";  // client's name
         private final int clientID;   // client ID
 
+        private boolean isUserNameReceived = false;
+
         // logger for tracing error messages
         private final Logger log = Logger.getLogger(Client.class.getName());
 
@@ -165,6 +167,26 @@ public class Server implements Runnable {
         }
 
         /**
+         *
+         * @param receivedMsg - contains received message from client side
+         * @param sentMsg - contains message sending for client
+         * @param out - output stream linked with client's socket
+         * @throws IOException - throws if error occurs upon message transmission/reception
+         */
+        private void sendProcessedClientMessage(MessageTraits receivedMsg, MessageTraits sentMsg,
+                                                ObjectOutputStream out) throws IOException{
+            String svrMsg = listener.onProcess(receivedMsg.getMessage(), this);
+
+            sentMsg.setMessage(svrMsg);
+            sentMsg.send(out);
+
+            log.info(usrName.isEmpty() ? String.format(CONNECTION_GREETENG_MSG + CONNECTION_WELCOME_MSG,
+                                                      (usrName = receivedMsg.getMessage())) :
+                                                       usrName + ": " + receivedMsg.getMessage());
+            isUserNameReceived = true;
+        }
+
+        /**
          * Body of messages exchange mechanism between client and server
          *
          * @see java.lang.Thread#run()
@@ -172,39 +194,25 @@ public class Server implements Runnable {
         @Override
         public void run() {
             try (
-                ObjectOutputStream out = new ObjectOutputStream(socket.getOutputStream());
-                ObjectInputStream in = new ObjectInputStream(socket.getInputStream())
+                 ObjectOutputStream out = new ObjectOutputStream(socket.getOutputStream());
+                 ObjectInputStream in = new ObjectInputStream(socket.getInputStream())
             ) {
-                String svrMsg;  // sending server message
-
                 //getting client name
                 MessageTraits recMsg = new MessageTraits();
-                recMsg.receive(in);
-
-                usrName = recMsg.getMessage();
-
-                log.info(String.format(CONNECTION_GREETENG_MSG + CONNECTION_WELCOME_MSG, usrName));
 
                 MessageTraits sentMsg = new MessageTraits();
                 sentMsg.setClientID(clientID);
-                sentMsg.setMessage(CONNECTION_WELCOME_MSG);
-
-                sentMsg.send(out);
 
                 // getting and decoding command from client's side
-                while (recMsg.receive(in) != DEFAULT_SZ) {
-                    log.info(usrName + ": " + recMsg.getMessage());
-
-                    if(QUIT_CMD.equals(recMsg.getMessage())) {
-                        log.info(String.format(CONNECTION_QUIT_MSG, usrName));
-                        break;
-                    }
-
-                    svrMsg = listener.onProcess(recMsg.getMessage(), this);
-
-                    sentMsg.setMessage(svrMsg);
-                    sentMsg.send(out);
+                while (recMsg.receive(in) != DEFAULT_SZ && (!QUIT_CMD.equals(recMsg.getMessage()) || !isUserNameReceived)) {
+                    sendProcessedClientMessage(recMsg, sentMsg, out);
                 }
+
+                if(QUIT_CMD.equals(recMsg.getMessage())) {
+                    sendProcessedClientMessage(recMsg, sentMsg, out);
+                    log.info(String.format(CONNECTION_QUIT_MSG, usrName));
+                }
+
             } catch (IOException exc) {
                 log.log(Level.SEVERE, (usrName.isEmpty() ? "Unestablished connection" : "Connection with user \"" +
                         usrName + "\"") + " error: problems with I/O while messages exchange is proceeded", exc);
@@ -212,7 +220,6 @@ public class Server implements Runnable {
                 close();
             }
         }
-
         /**
          * @return user name corresponding to this connection
          */
@@ -251,6 +258,13 @@ public class Server implements Runnable {
          */
         final int getClientID() {
             return clientID;
+        }
+
+        /**
+         * @return flag notifying if user name is received by server from client's side
+         */
+        final boolean isUserNameReceived() {
+            return isUserNameReceived;
         }
 
         /**
@@ -296,7 +310,8 @@ public class Server implements Runnable {
             ConfigReader cfgReader = new ConfigReader();
             cfgReader.parse("../files/config.xml", true);
 
-            Server.start(cfgReader.getPortNumber(), new AIServerListener());
+            // Server.start(cfgReader.getPortNumber(), new AIServerListener());
+            Server.start(cfgReader.getPortNumber(), (String msg, Server.Connection connection) -> msg);
         } catch(ParserConfigurationException exc) {
             log.log(Level.SEVERE, "ConfigReader error: unable to get DOM document instance from XML", exc);
         } catch(org.xml.sax.SAXException exc) {

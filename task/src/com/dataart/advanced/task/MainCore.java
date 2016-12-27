@@ -178,8 +178,8 @@ class MainCore {
             // or client
             else {
                 Client client = new Client(cfgReader.getHostName(),
-                        cfgReader.getPortNumber(), System.in);
-                client.startExchange(new SimpleClientListener());
+                        cfgReader.getPortNumber(), System.in, System.out);
+                client.start(new SimpleClientListener());
             }
         } catch(ParserConfigurationException exc) {
             log.log(Level.SEVERE, "ConfigReader error: unable to get DOM " +

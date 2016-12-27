@@ -160,12 +160,12 @@ class ClientThread implements Runnable {
         }
 
         // creating and executing client
-        Client client = new Client(hostName, portNumber, bais);
+        Client client = new Client(hostName, portNumber, bais, System.out);
 
         StorageClientListener storage = new StorageClientListener();
         storage.setReceivedCmdList(recCmdList);
 
-        client.startExchange(storage);
+        client.start(storage);
 
         try {
             cb.await();

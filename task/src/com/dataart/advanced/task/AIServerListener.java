@@ -4,9 +4,8 @@ import java.text.SimpleDateFormat;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
-import static com.dataart.advanced.task.Info.CMD_NOT_FOUND;
-import static com.dataart.advanced.task.Info.DEFAULT_CMD;
-import static com.dataart.advanced.task.Info.KNOWN_CMD;
+import static com.dataart.advanced.task.Info.*;
+import static com.dataart.advanced.task.Info.CONNECTION_WELCOME_MSG;
 
 /**
  * Clients messages processing implementation based on trivial AI
@@ -109,8 +108,7 @@ class AIServerListener implements ServerListener {
         @Override
         public String make(Server.Connection connection) {
             int connectionIndex = connection.getConnectionIndex();
-            return connectionIndex == CMD_NOT_FOUND ? "not found" :
-                    Integer.toString(connectionIndex);
+            return connectionIndex == CMD_NOT_FOUND ? "not found" : Integer.toString(connectionIndex);
         }
     }
 
@@ -160,9 +158,7 @@ class AIServerListener implements ServerListener {
          *         processing result
          */
         String getAnswer(Server.Connection connection) {
-            return action == null ? response :
-                    String.format(response,
-                            action.make(connection));
+            return action == null ? response : String.format(response, action.make(connection));
         }
 
         /**
@@ -201,9 +197,11 @@ class AIServerListener implements ServerListener {
     public String onProcess(String msg, Server.Connection connection) {
         // searching specified token and reply in collection
         UserCmd opt = KNOWN_CMD.stream()
-                .filter(t -> msg.toLowerCase().contains(t.getToken()))
+                .filter(t -> connection.isUserNameReceived() && msg.toLowerCase().contains(t.getToken()))
                 .findAny()
-                .orElse(DEFAULT_CMD);
+                .orElse(connection.isUserNameReceived() ? DEFAULT_CMD :
+                        new AIServerListener().new UserCmd(msg, String.format(CONNECTION_GREETENG_MSG +
+                                                                              CONNECTION_WELCOME_MSG, msg), null));
 
         return opt.getAnswer(connection);
     }
