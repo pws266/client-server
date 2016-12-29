@@ -1,7 +1,5 @@
 package com.dataart.advanced.task;
 
-import static com.dataart.advanced.task.Info.*;
-
 /**
  * Interface for clients messages processing received by server
  *

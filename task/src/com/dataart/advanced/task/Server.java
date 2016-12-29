@@ -124,7 +124,6 @@ public class Server implements Runnable {
                     ++clientsCounter;
 
                     // executing connection in separate thread
-                    // link.start();
                     new Thread(link, CONNECTION_THREAD_NAME + link.getClientID()).start();
                 }
             } finally {

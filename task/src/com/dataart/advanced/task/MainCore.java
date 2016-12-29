@@ -31,7 +31,7 @@ class MainCore {
      * Attempts to create folder for *.log - files
      * @param logTraits - logging properties loaded as resource
      */
-    static void createLoggingFolder(Properties logTraits,
+    private static void createLoggingFolder(Properties logTraits,
                                     Logger log) {
         try {
             String logPattern = logTraits.getProperty(
@@ -112,14 +112,11 @@ class MainCore {
      * @param correctArgNumber - correct arguments number in command line
      * @param annotation - brief usage program description with arguments notice
      */
-    static void checkCmdLineArgNumber(int argNumber, int correctArgNumber, Logger log, String annotation) throws Exception{
-//        try {
-            if (argNumber != correctArgNumber) {
-                throw new Exception("Illegal command line arguments number\n" + annotation);
-            }
-//        } catch (Exception exc) {
-//            log.log(Level.SEVERE, annotation, exc);
-//        }
+    private static void checkCmdLineArgNumber(int argNumber, int correctArgNumber, String annotation)
+                                     throws Exception{
+        if (argNumber != correctArgNumber) {
+            throw new Exception("Illegal command line arguments number\n" + annotation);
+        }
     }
 
     /**
@@ -158,7 +155,7 @@ class MainCore {
 
         try {
             // checking arguments number in command line
-            checkCmdLineArgNumber(args.length, CMD_LINE_ARGS_NUMBER, log, MAIN_ANNOTATION);
+            checkCmdLineArgNumber(args.length, CMD_LINE_ARGS_NUMBER, MAIN_ANNOTATION);
             // parsing command line keys and arguments
             parseCommandLine(args);
 

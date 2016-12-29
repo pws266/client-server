@@ -151,6 +151,7 @@ public class Client {
         try ( BufferedReader cmdIn = new BufferedReader(new InputStreamReader(inStream)) ) {
             // asking user name
             System.out.print("Enter your name, plz: ");
+
             String userName = cmdIn.readLine();
 
             boolean isMessageExchangeStarted = false;

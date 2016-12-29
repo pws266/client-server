@@ -22,8 +22,7 @@ public class Info {
     public static final int CMD_LINE_KEYS_NUMBER = 2;  // correct keys number
 
     // separator in *.log - file
-    public static final String LOG_SEPARATOR = "-----------------------------" +
-                               "---------------------------------------------";
+    public static final String LOG_SEPARATOR = "----------------------------------------------------------------------";
     // constants for server usage
     // connection timeout for server socket for server stop possibility
     public static final int SERVER_SOCKET_TIMEOUT = 1000;   // in ms

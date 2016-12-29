@@ -83,7 +83,7 @@ class MessageTraits {
      * @return - size of text message content or DEFAULT_SZ in failure case
      */
     int receive(ObjectInputStream ois) throws IOException {
-        int readSz = DEFAULT_SZ;
+        int readSz;
 
         try {
             // getting message size

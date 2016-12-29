@@ -9,10 +9,18 @@
 	<property name="dir.cfg" value="../../files" />
     <property name="dir.log" value="log" />
 	<property name="file.jar" value="${dir.jar}/java.advanced.jar" />
-    <property name="test.jar" value="${dir.jar}/java.advanced.test.jar" />
 	<property name="file.xml" value="${dir.cfg}/config.xml" />
+	<property name="dir.src.test" value="../test" />
+	<property name="dir.build.test" value="${dir.build}/test" />
+    <property name="dir.lib" value="../lib"/>
 
 	<property file="Ant.properties" />
+
+    <path id="classpath.test">
+        <pathelement location="${dir.lib}/junit-4.12.jar"/>
+        <pathelement location="${dir.lib}/hamcrest-core-1.3.jar"/>
+        <pathelement location="${dir.classes}"/>
+    </path>
 
 	<target name="clean" description="Cleaning previous build">
 		<echo>Removing previous build results</echo>
@@ -39,6 +47,13 @@
 		<echo>Source files compilation</echo>
 		<javac srcdir="${dir.src}" destdir="${dir.classes}" />
 	</target>
+
+	<target name="compile-test" depends="compile" description="Compiling JUnit tests">
+        <mkdir dir="${dir.build.test}" />
+        <javac srcdir="${dir.src.test}" destdir="${dir.build.test}" includeantruntime="false">
+            <classpath refid="classpath.test"/>
+        </javac>
+	</target>
 	
 	<target name="make-main-jar" depends="compile, copyrc"
 			description="Creating client/server executable *.jar archive">
@@ -49,7 +64,7 @@
 			 index="true">
 			<manifest>
 				<attribute name="Built-By" value="${java.user.name}" />
-				<attribute name="Main-Class" value="MainCore" />
+				<attribute name="Main-Class" value="com.dataart.advanced.task.MainCore" />
 				<section name="common">
 					<attribute name="Specification-Title" value="Java Advanced course task"/>
 					<attribute name="Specification-Version" value="${sw.version}"/>
@@ -62,31 +77,9 @@
 		</jar>
 	</target>
 
-	<target name="make-test-jar" depends="compile, copyrc"
-			description="Creating testing executable *.jar archive">
-		<echo>Packing testing application in ${test.jar}</echo>
-		<jar destfile="${test.jar}"
-			 basedir="${dir.classes}"
-			 compress="false"
-			 index="true">
-			<manifest>
-				<attribute name="Built-By" value="${java.user.name}" />
-				<attribute name="Main-Class" value="com.dataart.advanced.task.Testing" />
-				<section name="common">
-					<attribute name="Specification-Title" value="Java Advanced course task, testing"/>
-					<attribute name="Specification-Version" value="${sw.version}"/>
-					<attribute name="Specification-Vendor" value="DataArt"/>
-					<attribute name="Implementation-Title" value="common"/>
-					<attribute name="Implementation-Version" value="${sw.version} ${sw.date}"/>
-					<attribute name="Implementation-Vendor" value="Unknown"/>
-				</section>
-			</manifest>
-		</jar>
-	</target>
-
 	<target name="run-server" depends="make-main-jar"
 			description="Deploying Java Advanced course task in server mode :)">
-		<echo>>>Starting server"</echo>
+		<echo>>>Starting server</echo>
 		<java jar="${file.jar}" fork="true">
 			<arg line="-config ${file.xml} -server" />
 		</java>
@@ -94,18 +87,28 @@
 
 	<target name="run-client" depends="make-main-jar"
 			description="Deploying Java Advanced course task in client mode:)">
-		<echo>>>Starting client"</echo>
+		<echo>>>Starting client</echo>
 		<java jar="${file.jar}" fork="true">
 			<arg line="-config ${file.xml} -client" />
 		</java>
 	</target>
 
-    <target name="run-test" depends="make-test-jar"
-            description="Deploying multi-client testing of Java Advanced course task :)">
-        <echo>>>Starting multi-client testing"</echo>
-        <java jar="${test.jar}" fork="true">
-            <arg line="-config ${file.xml} -usr 200 -cmd 1000" />
-        </java>
+    <target name="payload-test" depends="compile-test" description="Deploying server payload test">
+        <echo>>>Starting server payload test</echo>
+        <junit printsummary="on" haltonfailure="yes" fork="false">
+            <classpath>
+                <path refid="classpath.test" />
+                <pathelement location="${dir.build.test}"/>
+            </classpath>
+
+            <formatter type="brief" usefile="false" />
+
+            <sysproperty key="cfgFileName" value="../../files/config.xml" />
+            <sysproperty key="userNumber" value="100" />
+            <sysproperty key="commandsNumber" value="1000" />
+
+            <test name="com.dataart.advanced.task.ServerTest" />
+        </junit>
     </target>
 
 </project>

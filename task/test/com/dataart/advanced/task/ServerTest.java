@@ -14,6 +14,8 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
 import java.util.concurrent.CountDownLatch;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import java.util.stream.IntStream;
 
 import static com.dataart.advanced.task.Info.*;
@@ -27,10 +29,11 @@ import static org.junit.Assert.assertTrue;
  * Created on 26.11.16.
  */
 public class ServerTest {
-    private static final int userNumber = 100;
-    private static final int commandsNumber = 1000;
+    private static final Logger log = Logger.getLogger(ServerTest.class.getName());
+    private static int clientCounter = 0;
 
-    private static final String cfgFileName = "../files/config.xml";
+    private static int userNumber = 100;
+    private static int commandsNumber = 1000;
 
     private Server server;
     private ConfigReader cfgReader = new ConfigReader();
@@ -40,10 +43,13 @@ public class ServerTest {
     private CountDownLatch latch;
 
     class PayloadClient implements Runnable {
+        private final Logger log = Logger.getLogger(PayloadClient.class.getName());
+
         private ByteArrayOutputStream inCommand;    // client's commands set
         private ByteArrayOutputStream outCommand;   // commands set processed by server
 
         private Client client;
+        private final int clientID;
 
         private void generateCommands() throws IOException {
             Random rnd = new Random();
@@ -67,7 +73,9 @@ public class ServerTest {
             client = new Client(hostName, portNumber);
             client.setOutputStream(outCommand);
 
-            new Thread(this, TESTING_CLIENT_THREAD_NAME).start();
+            clientID = clientCounter++;
+
+            new Thread(this, TESTING_CLIENT_THREAD_NAME + clientID).start();
         }
 
         @Override
@@ -82,7 +90,7 @@ public class ServerTest {
 
                 latch.countDown();
             } catch (IOException exc) {
-
+                log.log(Level.SEVERE, "PayloadClient #" + clientID +": error while generating commands list", exc);
             }
         }
 
@@ -93,6 +101,11 @@ public class ServerTest {
 
     @Before
     public void before() throws ParserConfigurationException, SAXException, IOException {
+        String cfgFileName = System.getProperty("cfgFileName");
+
+        userNumber = Integer.parseInt(System.getProperty("userNumber"));
+        commandsNumber = Integer.parseInt(System.getProperty("commandsNumber"));
+
         client = new ArrayList<>(userNumber);
         latch = new CountDownLatch(userNumber);
 
@@ -106,21 +119,27 @@ public class ServerTest {
     public void testUserCommandsReception() {
         new Thread(server, SERVER_THREAD_NAME).start();
 
-        IntStream.range(0, userNumber).forEach(i -> client.add(new PayloadClient(cfgReader.getHostName(), cfgReader.getPortNumber())));
-
+        IntStream.range(0, userNumber).forEach(i -> client.add(new PayloadClient(cfgReader.getHostName(),
+                                                                                 cfgReader.getPortNumber())));
         try {
             latch.await();
 
             long errorsNumber = client.stream()
                                       .filter(PayloadClient::isError)
                                       .count();
-
-            System.out.println("Errors number: " + errorsNumber);
             server.stop();
+
+            log.info(LOG_SEPARATOR);
+            log.info("Payload test results:\n");
+            log.info("Clients number: " + userNumber);
+            log.info("Commands number per client: " + commandsNumber + '\n');
+
+            log.info("Connections number with errors: " + errorsNumber);
 
             assertTrue(errorsNumber == 0);
         } catch(InterruptedException exc) {
-
+            log.log(Level.SEVERE, "ServerTest: test is interrupted while waiting the end of messages exchange + " +
+                    "between client and server", exc);
         }
 
     }

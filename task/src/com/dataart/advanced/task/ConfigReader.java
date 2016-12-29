@@ -11,8 +11,6 @@ import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
 import java.io.File;
 import java.io.IOException;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 import static com.dataart.advanced.task.Info.CONFIG_TAG;
 import static com.dataart.advanced.task.Info.SERVER_TAG;
@@ -31,9 +29,6 @@ import static com.dataart.advanced.task.Info.HOST_TAG;
 class ConfigReader {
     private int portNumber = 0; // client/server port number
     private String hostName;    // host name for client's usage
-
-    // logger for tracing error messages
-    private static final Logger log = Logger.getLogger(ConfigReader.class.getName());
 
     /**
      * Reads parameters list from specified *.xml configuration file
@@ -79,7 +74,7 @@ class ConfigReader {
      * @param paramList - parameters nodes list
      *
      * @return element node for further parsing
-     * @throws IOException
+     * @throws IOException - if required node in XML is not found
      */
     private Element readPortNumber(NodeList paramList) throws IOException {
         Node dstNode = paramList.item(0);
@@ -100,7 +95,7 @@ class ConfigReader {
      * @param elm - element of *.xml configuration file containing host name
      * @param isServer - flag defining the appropriate section in configuration file corresponding to client or server
      *
-     * @throws IOException
+     * @throws IOException - if required element in XML is not found
      */
     private void readHostName(Element elm, boolean isServer) throws IOException {
         if (isServer) {
@@ -133,71 +128,6 @@ class ConfigReader {
         Element hostElm = readPortNumber(paramList);
         readHostName(hostElm, isServer);
     }
-
-    /**
-     * Reads parameters from specified *.xml configuration file
-     *
-     * @param cfgFileName - path and name of *.xml configuration file
-     * @param isServer - defines the appropriate section in configuration file corresponding to client or server
-     */
-/*
-    void parse(String cfgFileName, boolean isServer) {
-        File cfgFile = new File(cfgFileName);
-
-        try {
-            DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
-            DocumentBuilder builder = factory.newDocumentBuilder();
-
-            Document doc = builder.parse(cfgFile);
-
-            doc.getDocumentElement().normalize();
-
-            // parsing XML body
-            NodeList cfgList = doc.getElementsByTagName(CONFIG_TAG);
-
-            Node cfgNode = cfgList.item(0);
-            if (cfgNode.getNodeType() == Node.ELEMENT_NODE) {
-                Element cfgElm = (Element)cfgNode;
-
-                // reading port value for client/server
-                String dstTag = isServer ? SERVER_TAG : CLIENT_TAG;
-                NodeList dstList = cfgElm.getElementsByTagName(dstTag);
-
-                Node dstNode = dstList.item(0);
-                if (dstNode.getNodeType() == Node.ELEMENT_NODE) {
-                    Element dstElm = (Element)dstNode;
-                    portNumber = Integer.parseInt(dstElm.getAttribute(
-                                                  PORT_TAG));
-
-                    // getting host name for client
-                    if (!isServer) {
-                        NodeList hostList = dstElm.getElementsByTagName(
-                                                   HOST_TAG);
-                        Node hostNode = hostList.item(0);
-                        if (hostNode.getNodeType() == Node.ELEMENT_NODE) {
-                            NodeList list = hostNode.getChildNodes();
-                            hostName = list.item(0).getNodeValue();
-                        }
-                    }
-                    else {
-                        hostName = null;
-                    }
-                }
-            }
-
-        } catch(ParserConfigurationException exc) {
-            log.log(Level.SEVERE, "ConfigReader error: unable to get DOM " +
-                    "document instance from XML", exc);
-        } catch(org.xml.sax.SAXException exc) {
-            log.log(Level.SEVERE, "ConfigReader error: unable to parse given " +
-                    "XML content", exc);
-        } catch(IOException exc) {
-            log.log(Level.SEVERE, "ConfigReader error: some I/O problems " +
-                    "occur while parsing XML", exc);
-        }
-    }
-
-*/
 
     /**
      * @return client/server port number
