@@ -15,6 +15,14 @@ commands number) could be changed and assigned in Ant configuration file
 simple methods. The exceptions is catched in the points of code where the method
 generationg this exception is invoked.
 
+Added corrections according review #3 issues. Client/server configuration reader
+is fully rewrote and right now based on SAX library instead of DOM. Connections
+counter type is changed to AtomicInteger. Console class is implemented for
+reading data from terminal on server side and for writing prompts on client side.
+Corrected error exception processing in MainCore class. Connection description
+class is changed for "try-with-resource" construction usage. Performs other
+negligeable task code corrections according to review #3 issues.
+
 Folders structure:
 - files - folder containig configuration *.xml - file for client and server with
           server port number and host name;
