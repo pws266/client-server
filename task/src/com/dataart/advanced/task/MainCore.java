@@ -18,7 +18,7 @@ import static com.dataart.advanced.task.Info.*;
  * @author Sergey Sokhnyshev
  * Created on 10.06.16.
  */
-class MainCore {
+public class MainCore {
     // logger for tracing error messages
     private static final Logger log = Logger.getLogger(MainCore.class.getName());
 
@@ -31,58 +31,57 @@ class MainCore {
      * Attempts to create folder for *.log - files
      * @param logTraits - logging properties loaded as resource
      */
-    private static void createLoggingFolder(Properties logTraits,
-                                    Logger log) {
-        try {
-            String logPattern = logTraits.getProperty(
-                    "java.util.logging.FileHandler.pattern");
-            if (logPattern != null) {
-                String logPath = new File(logPattern).getParent();
+    private static boolean createLoggingFolder(Properties logTraits, Logger log) {
+        String logPattern = logTraits.getProperty("java.util.logging.FileHandler.pattern");
+        if (logPattern != null) {
+            String logPath = new File(logPattern).getParent();
 
-                File logFolder = new File(logPath);
+            File logFolder = new File(logPath);
 
-                if (!logFolder.exists() && !logFolder.mkdirs()) {
-                    throw new Exception("Unable to create folder for " +
-                            "*.log files specified in " +
-                            "resources");
-                }
+            if (!logFolder.exists() && !logFolder.mkdirs()) {
+                log.log(Level.SEVERE, "Error: Unable to create folder for *.log files specified in resources");
+
+                return false;
             }
-        } catch (Exception exc) {
-            log.log(Level.SEVERE, "Error: no log folder was created: ", exc);
+
+            return true;
         }
+
+        return false;
     }
 
     /**
      * Switches on logging
      */
-    private static void enableLogging() {
-        // switching on logging
+    private static boolean enableLogging() {
+        // switching on logging, configuring loggers via *.properties files parameters reading
         // resource file should be in the same folder with package folders
         // Using "absolute" path
         try {
-            LogManager.getLogManager().readConfiguration(
-                    MainCore.class.getResourceAsStream(
-                            LOG_RESOURCE_FILE_PATH));
+            LogManager.getLogManager().readConfiguration(MainCore.class.getResourceAsStream(LOG_RESOURCE_FILE_PATH));
         } catch (IOException exc) {
-            log.log(Level.SEVERE, "Error: unable to read logging " +
-                    "configuration file", exc);
+            log.log(Level.SEVERE, "Error: unable to read logging configuration file", exc);
+            return false;
         }
+
+        //getting name of log folder
+        Properties logTraits = new Properties();
 
         // creating folder for logging
         if (log.getParent().getLevel() != Level.OFF) {
             try {
-                //getting name of log folder
-                Properties logTraits = new Properties();
-                logTraits.load(MainCore.class.getResourceAsStream(
-                        LOG_RESOURCE_FILE_PATH));
-
-                // attempting to create folder for logs
-                createLoggingFolder(logTraits, log);
+                logTraits.load(MainCore.class.getResourceAsStream(LOG_RESOURCE_FILE_PATH));
             } catch (IOException exc){
                 log.log(Level.SEVERE, "Error: unable to read/load logging " +
                         "configuration file", exc);
+                return false;
             }
+
+            // attempting to create folder for logs
+            return createLoggingFolder(logTraits, log);
         }
+
+        return true;
     }
 
     /**
@@ -107,24 +106,16 @@ class MainCore {
     }
 
     /**
-     * Verifies arguments number in command line
-     * @param argNumber - arguments number in command line
-     * @param correctArgNumber - correct arguments number in command line
-     * @param annotation - brief usage program description with arguments notice
-     */
-    private static void checkCmdLineArgNumber(int argNumber, int correctArgNumber, String annotation)
-                                     throws Exception{
-        if (argNumber != correctArgNumber) {
-            throw new Exception("Illegal command line arguments number\n" + annotation);
-        }
-    }
-
-    /**
-     * Parses command line to appropriate keys and values.
+     * Parses command line to appropriate keys and values. Verifies arguments number in command line
      * Performs simple verification of command line content
      * @param args - command line for parsing
      */
-    private static void parseCommandLine(String[] args) throws Exception {
+    private static boolean parseCommandLine(String[] args) {
+        if (args.length != CMD_LINE_ARGS_NUMBER) {
+            log.log(Level.SEVERE, "Illegal command line arguments number\n" + MAIN_ANNOTATION);
+            return false;
+        }
+
         int correctKeysNumber = 0;
 
         for (int i = 0; i < args.length; ++i) {
@@ -145,19 +136,24 @@ class MainCore {
         }
 
         if (correctKeysNumber != CMD_LINE_KEYS_NUMBER) {
-            throw new Exception("Illegal keys in command line. Correct keys number: " + correctKeysNumber);
+            log.log(Level.SEVERE, "Illegal keys in command line. Correct keys number: " + correctKeysNumber);
+            return false;
         }
+
+        return true;
     }
 
     public static void main(String[] args) {
         // enabling logging
-        enableLogging();
+        if (!enableLogging()) {
+            return;
+        }
 
         try {
-            // checking arguments number in command line
-            checkCmdLineArgNumber(args.length, CMD_LINE_ARGS_NUMBER, MAIN_ANNOTATION);
             // parsing command line keys and arguments
-            parseCommandLine(args);
+            if (!parseCommandLine(args)) {
+                return;
+            }
 
             log.info((isServer ? "Server" : "Client") + " will be started");
             log.info("Configuration file name: " + cfgFileName);
@@ -187,8 +183,6 @@ class MainCore {
         } catch(IOException exc) {
             log.log(Level.SEVERE, "ConfigReader error: some I/O problems " +
                     "occur while parsing XML", exc);
-        } catch (Exception exc) {
-            log.log(Level.SEVERE, "Wrong arguments command line format", exc);
         }
     }
 }

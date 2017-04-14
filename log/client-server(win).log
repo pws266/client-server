@@ -1,0 +1,57 @@
+èþë 22, 2016 10:14:37 PM advanced.task.MainCore main
+INFO: Server will be started
+èþë 22, 2016 10:14:37 PM advanced.task.MainCore main
+INFO: Configuration file name: files/config.xml
+èþë 22, 2016 10:14:38 PM advanced.task.MainCore logSystemInfo
+INFO: --------------------------------------------------------------------------
+èþë 22, 2016 10:14:38 PM advanced.task.MainCore logSystemInfo
+INFO: OS:
+ - name: Windows 10
+ - platform: amd64
+ - version: 10.0
+
+èþë 22, 2016 10:14:38 PM advanced.task.MainCore logSystemInfo
+INFO: JRE:
+ - vendor: Oracle Corporation
+ - name: Java Platform API Specification
+ - version: 1.8
+
+èþë 22, 2016 10:14:38 PM advanced.task.MainCore logSystemInfo
+INFO: --------------------------------------------------------------------------
+èþë 22, 2016 10:14:38 PM advanced.task.Server start
+INFO: Type "stop" for server work termination
+èþë 22, 2016 10:14:38 PM advanced.task.Server run
+INFO: Server is successfully started!
+No active connections. Waiting for clients
+èþë 22, 2016 10:16:18 PM advanced.task.Server$Connection run
+INFO: Hello, Melmon! You are successfully connected to server!
+èþë 22, 2016 10:16:31 PM advanced.task.Server$Connection run
+INFO: Hello, Marty! You are successfully connected to server!
+èþë 22, 2016 10:16:44 PM advanced.task.Server$Connection run
+INFO: Marty: Hello, server!
+èþë 22, 2016 10:16:59 PM advanced.task.Server$Connection run
+INFO: Melmon: What time is it now?
+èþë 22, 2016 10:17:13 PM advanced.task.Server$Connection run
+INFO: Marty: ... and date?
+èþë 22, 2016 10:17:30 PM advanced.task.Server$Connection run
+INFO: Marty: Total users number?
+èþë 22, 2016 10:17:39 PM advanced.task.Server$Connection run
+INFO: Melmon: What's my ID?
+èþë 22, 2016 10:17:44 PM advanced.task.Server$Connection run
+INFO: Melmon: help
+èþë 22, 2016 10:17:59 PM advanced.task.Server$Connection run
+INFO: Marty: What's your name?
+èþë 22, 2016 10:18:04 PM advanced.task.Server$Connection run
+INFO: Marty: quit
+èþë 22, 2016 10:18:04 PM advanced.task.Server$Connection run
+INFO: User "Marty" is disconnected
+
+èþë 22, 2016 10:18:17 PM advanced.task.Server$Connection run
+INFO: Melmon: Total users number?
+èþë 22, 2016 10:18:20 PM advanced.task.Server$Connection run
+INFO: Melmon: quit
+èþë 22, 2016 10:18:20 PM advanced.task.Server$Connection run
+INFO: User "Melmon" is disconnected
+
+èþë 22, 2016 10:18:20 PM advanced.task.Server$Connection close
+INFO: No active connections. Waiting for clients

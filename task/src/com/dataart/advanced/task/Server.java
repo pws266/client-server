@@ -8,6 +8,7 @@ import java.net.SocketTimeoutException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
@@ -27,16 +28,17 @@ import static com.dataart.advanced.task.Info.*;
 public class Server implements Runnable {
     private volatile boolean isStop = false;  // flag notifying of server stop
 
-    private final int portNumber;  // server's port number
-    private int clientsCounter = 0;     // clients counter for ID assigning
+    private int portNumber = 8080;     // server's port number
+
+    // clients counter for ID assigning
+    private AtomicInteger clientsCounter;
 
     // connections list maintaining by server
     private final List<Connection> connectList;
 
     // lock for access control to "connectList"
-    private final ReadWriteLock lock = new ReentrantReadWriteLock();
-    private final Lock readLock = lock.readLock();
-    private final Lock writeLock = lock.writeLock();
+    private final Lock readLock;
+    private final Lock writeLock;
 
     // client commands processor (operates via callback)
     private final ServerListener listener;
@@ -64,8 +66,16 @@ public class Server implements Runnable {
         new Thread(srv, SERVER_THREAD_NAME).start();
 
         log.info(String.format("Type \"%s\" for server work termination", SERVER_STOP_CMD));
-
+/*
         try ( BufferedReader cmdIn = new BufferedReader(new InputStreamReader(System.in)) ) {
+            String stopCmd;
+            while ((stopCmd = cmdIn.readLine()) != null) {
+                if (SERVER_STOP_CMD.compareToIgnoreCase(stopCmd) == 0) {
+                    break;
+                }
+            }
+*/
+        try ( ConsoleIO cmdIn = new ConsoleIO() ) {
             String stopCmd;
             while ((stopCmd = cmdIn.readLine()) != null) {
                 if (SERVER_STOP_CMD.compareToIgnoreCase(stopCmd) == 0) {
@@ -92,6 +102,13 @@ public class Server implements Runnable {
         this.portNumber = portNumber;
 
         connectList = Collections.synchronizedList(new ArrayList<Connection>());
+
+        final ReadWriteLock lock = new ReentrantReadWriteLock();
+
+        readLock = lock.readLock();
+        writeLock = lock.writeLock();
+
+        clientsCounter = new AtomicInteger();
     }
 
     /**
@@ -118,10 +135,8 @@ public class Server implements Runnable {
                     }
 
                     // creating connection and adding it to connection list
-                    Connection link = new Connection(usrSocket, clientsCounter);
+                    Connection link = new Connection(usrSocket, clientsCounter.getAndIncrement());
                     connectList.add(link);
-
-                    ++clientsCounter;
 
                     // executing connection in separate thread
                     new Thread(link, CONNECTION_THREAD_NAME + link.getClientID()).start();
@@ -141,7 +156,7 @@ public class Server implements Runnable {
      * Single client connection. Performs client messages processing via method
      * specified by server's field "responder"
      */
-    class Connection implements Runnable {
+    class Connection implements Runnable, Closeable {
         // socket for client connection created and listed by server
         private final Socket socket;
 
@@ -175,11 +190,9 @@ public class Server implements Runnable {
         private void sendProcessedClientMessage(MessageTraits receivedMsg, MessageTraits sentMsg,
                                                 ObjectOutputStream out) throws IOException{
             String svrMsg = listener.onProcess(receivedMsg.getMessage(), this);
+            sentMsg.sendMessage(svrMsg, out);
 
-            sentMsg.setMessage(svrMsg);
-            sentMsg.send(out);
-
-            log.info(usrName.isEmpty() ? String.format(CONNECTION_GREETENG_MSG + CONNECTION_WELCOME_MSG,
+            log.info(usrName.isEmpty() ? String.format(CONNECTION_BEGIN_SRVMSG,
                                                       (usrName = receivedMsg.getMessage())) :
                                                        usrName + ": " + receivedMsg.getMessage());
             isUserNameReceived = true;
@@ -193,6 +206,7 @@ public class Server implements Runnable {
         @Override
         public void run() {
             try (
+                 Connection link = this;
                  ObjectOutputStream out = new ObjectOutputStream(socket.getOutputStream());
                  ObjectInputStream in = new ObjectInputStream(socket.getInputStream())
             ) {
@@ -204,19 +218,16 @@ public class Server implements Runnable {
 
                 // getting and decoding command from client's side
                 while (recMsg.receive(in) != DEFAULT_SZ && (!QUIT_CMD.equals(recMsg.getMessage()) || !isUserNameReceived)) {
-                    sendProcessedClientMessage(recMsg, sentMsg, out);
+                    link.sendProcessedClientMessage(recMsg, sentMsg, out);
                 }
 
-                if(QUIT_CMD.equals(recMsg.getMessage())) {
-                    sendProcessedClientMessage(recMsg, sentMsg, out);
-                    log.info(String.format(CONNECTION_QUIT_MSG, usrName));
+                if (QUIT_CMD.equals(recMsg.getMessage())) {
+                    link.sendProcessedClientMessage(recMsg, sentMsg, out);
+                    log.info(String.format(CONNECTION_QUIT_SRVMSG, usrName));
                 }
-
             } catch (IOException exc) {
                 log.log(Level.SEVERE, (usrName.isEmpty() ? "Unestablished connection" : "Connection with user \"" +
                         usrName + "\"") + " error: problems with I/O while messages exchange is proceeded", exc);
-            } finally {
-                close();
             }
         }
         /**
@@ -281,7 +292,8 @@ public class Server implements Runnable {
         /**
          * Closes socket corresponding to given connection instance
          */
-        void close() {
+        @Override
+        public void close() throws IOException {
             try {
                 if (!socket.isClosed()) {
                     socket.close();
@@ -309,8 +321,8 @@ public class Server implements Runnable {
             ConfigReader cfgReader = new ConfigReader();
             cfgReader.parse("../files/config.xml", true);
 
-            // Server.start(cfgReader.getPortNumber(), new AIServerListener());
-            Server.start(cfgReader.getPortNumber(), (String msg, Server.Connection connection) -> msg);
+             Server.start(cfgReader.getPortNumber(), new AIServerListener());
+ //           Server.start(cfgReader.getPortNumber(), (String msg, Server.Connection connection) -> msg);
         } catch(ParserConfigurationException exc) {
             log.log(Level.SEVERE, "ConfigReader error: unable to get DOM document instance from XML", exc);
         } catch(org.xml.sax.SAXException exc) {

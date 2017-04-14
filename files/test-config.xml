@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+
+<config>
+
+   <server port="8080"/>
+
+   <client port="8100">
+
+      <ServerHost>192.168.197.35</ServerHost>
+
+   </client>
+
+</config>
+

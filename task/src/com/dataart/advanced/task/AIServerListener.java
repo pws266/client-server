@@ -5,7 +5,6 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import static com.dataart.advanced.task.Info.*;
-import static com.dataart.advanced.task.Info.CONNECTION_WELCOME_MSG;
 
 /**
  * Clients messages processing implementation based on trivial AI
@@ -13,7 +12,7 @@ import static com.dataart.advanced.task.Info.CONNECTION_WELCOME_MSG;
  * @author Sergey Sokhnyshev
  * Created on 14.11.16.
  */
-class AIServerListener implements ServerListener {
+public class AIServerListener implements ServerListener {
     /**
      * Interface for request processing specified by received known client's
      * token performing on server side
@@ -200,8 +199,7 @@ class AIServerListener implements ServerListener {
                 .filter(t -> connection.isUserNameReceived() && msg.toLowerCase().contains(t.getToken()))
                 .findAny()
                 .orElse(connection.isUserNameReceived() ? DEFAULT_CMD :
-                        new AIServerListener().new UserCmd(msg, String.format(CONNECTION_GREETENG_MSG +
-                                                                              CONNECTION_WELCOME_MSG, msg), null));
+                        new AIServerListener().new UserCmd(msg, String.format(CONNECTION_WELCOME_MSG, msg), null));
 
         return opt.getAnswer(connection);
     }

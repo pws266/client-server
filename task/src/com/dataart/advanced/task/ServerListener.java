@@ -6,7 +6,7 @@ package com.dataart.advanced.task;
  * @author Sergey Sokhnyshev
  * Created on 06.07.16.
  */
-interface ServerListener {
+public interface ServerListener {
     /**
      * Generates server's response on received client message
      *

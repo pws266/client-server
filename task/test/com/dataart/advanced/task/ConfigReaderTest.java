@@ -16,10 +16,11 @@ import java.io.IOException;
  * Created on 06.09.16.
  */
 public class ConfigReaderTest {
-    private static final String cfgFileName = "../files/config.xml";
+    private static final String cfgFileName = "../files/test-config.xml";
 
-    private static final int correctPortNumber = 8000;
-    private static final String correctHostName = "localhost";
+    private static final int correctServerPortNumber = 8080;
+    private static final int correctClientPortNumber = 8100;
+    private static final String correctHostName = "192.168.197.35";
 
     private ConfigReader cfgReader;
 
@@ -32,14 +33,14 @@ public class ConfigReaderTest {
     public void testServerCfgLoading() throws ParserConfigurationException, SAXException, IOException {
         cfgReader.parse(cfgFileName, true);
 
-        Assert.assertEquals(cfgReader.getPortNumber(), correctPortNumber);
+        Assert.assertEquals(cfgReader.getPortNumber(), correctServerPortNumber);
     }
 
     @Test
     public void testClientCfgLoading() throws ParserConfigurationException, SAXException, IOException {
         cfgReader.parse(cfgFileName, false);
 
-        Assert.assertEquals(cfgReader.getPortNumber(), correctPortNumber);
+        Assert.assertEquals(cfgReader.getPortNumber(), correctClientPortNumber);
         Assert.assertEquals(cfgReader.getHostName(), correctHostName);
     }
 }

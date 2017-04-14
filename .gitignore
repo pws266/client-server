@@ -6,6 +6,6 @@ task/.idea/dataSources.local.xml
 
 # Directories #
 ###############
-task/out/
+.build/
+out/
 task/log/
-

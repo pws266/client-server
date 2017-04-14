@@ -33,9 +33,7 @@ public class Client {
      */
     private void sendUserName(String userName, ObjectOutputStream out) throws IOException {
         MessageTraits sentMsg = new MessageTraits();
-        sentMsg.setMessage(userName);
-
-        sentMsg.send(out);
+        sentMsg.sendMessage(userName, out);
     }
 
     /**
@@ -59,7 +57,8 @@ public class Client {
      *                       commands are read from keyboard
      */
     private void exchangeCore(ClientListener listener, BufferedReader cmdIn,
-                              ObjectInputStream in, ObjectOutputStream out) throws IOException {
+                              ObjectInputStream in, ObjectOutputStream out,
+                              ConsoleIO consoleIO) throws IOException {
         String usrMsg = "";  // command from client
 
         MessageTraits sentMsg = new MessageTraits();
@@ -68,16 +67,16 @@ public class Client {
         while (recMsg.receive(in) != DEFAULT_SZ && !Info.QUIT_CMD.equals(usrMsg)) {
             outputServerProcessedMessage(listener, recMsg);
 
-            System.out.print("> ");
+            consoleIO.out().print("> ");
+            consoleIO.out().flush();
+
             usrMsg = cmdIn.readLine();
 
             if (usrMsg != null) {
                 System.out.println("Client: " + usrMsg);
 
                 sentMsg.setClientID(recMsg.getClientID());
-                sentMsg.setMessage(usrMsg);
-
-                sentMsg.send(out);
+                sentMsg.sendMessage(usrMsg, out);
             }
         }
 
@@ -148,9 +147,11 @@ public class Client {
      *                   method
      */
     public void start(ClientListener listener) {
-        try ( BufferedReader cmdIn = new BufferedReader(new InputStreamReader(inStream)) ) {
+        try ( BufferedReader cmdIn = new BufferedReader(new InputStreamReader(inStream));
+              ConsoleIO consoleIO = new ConsoleIO()) {
             // asking user name
-            System.out.print("Enter your name, plz: ");
+            consoleIO.out().print("Enter your name, plz: ");
+            consoleIO.out().flush();
 
             String userName = cmdIn.readLine();
 
@@ -167,7 +168,7 @@ public class Client {
                 sendUserName(userName, out);
 
                 // starting commands exchange between client and server
-                exchangeCore(listener, cmdIn, in, out);
+                exchangeCore(listener, cmdIn, in, out, consoleIO);
             } catch (UnknownHostException exc) {
                 log.log(Level.SEVERE, "Client \"" + userName + "\" : Unkown error while connecting to host = \"" +
                         hostName + "\" port = " + portNumber, exc);

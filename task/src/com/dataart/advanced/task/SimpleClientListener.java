@@ -6,7 +6,7 @@ package com.dataart.advanced.task;
  * @author Sergey Sokhnyshev
  * Created by newbie on 14.11.16.
  */
-class SimpleClientListener implements ClientListener {
+public class SimpleClientListener implements ClientListener {
     /**
      * Generates client's responce on received server message
      * @param msg - received server message

@@ -19,7 +19,7 @@ import static com.dataart.advanced.task.Info.SYMBOL_SUBSTITUTION;
  * @author Sergey Sokhnyshev
  * Created on 01.07.16.
  */
-class MessageTraits {
+public class MessageTraits {
     private int clientID = DEFAULT_ID;  // client's identification number
     private String message;             // message content
 
@@ -32,11 +32,10 @@ class MessageTraits {
     }
 
     /**
-     * Assigns message content and replaces service symbols with its
-     * correct values
+     * Assigns message content and replaces service symbols with its correct values
      * @param message - message content
      */
-    void setMessage(String message) {
+    private void setMessage(String message) {
         // searching for service symbols
         StringBuilder buffer = new StringBuilder(message);
 
@@ -69,12 +68,22 @@ class MessageTraits {
      * Packs message parameters to specified output stream
      * @param oos - external output stream connected to socket in client/server
      */
-    void send(ObjectOutputStream oos) throws IOException {
+    private void send(ObjectOutputStream oos) throws IOException {
         oos.writeInt(message.length());
         oos.writeInt(clientID);
         oos.write(message.getBytes());
 
         oos.flush();
+    }
+
+    /*
+    Processes service symbols ('\\r', '\\n', etc) in specified message and packs message to output stream
+    * @param message - message content
+    * @param oos - external output stream connected to socket in client/server
+     */
+    void sendMessage(String message, ObjectOutputStream oos) throws IOException {
+        setMessage(message);
+        send(oos);
     }
 
     /**

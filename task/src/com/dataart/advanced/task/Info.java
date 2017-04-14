@@ -32,23 +32,19 @@ public class Info {
     // server thread name
     public static final String SERVER_THREAD_NAME = "MultiClientServerThread";
     // server starting message
-    public static final String SERVER_START_MSG = "Server is successfully " +
-                                                  "started!\n";
+    public static final String SERVER_START_MSG = "Server is successfully started!\n";
     // constants for connection usage
     // message displaying if no clients are connected to server
-    public static final String NO_CONNECTION_MSG = "No active connections. " +
-                                                   "Waiting for clients";
+    public static final String NO_CONNECTION_MSG = "No active connections. Waiting for clients";
     // connection thread name
     public static final String CONNECTION_THREAD_NAME = "ConnectionThread#";
 
-    // message for connected client greetings
-    public static final String CONNECTION_GREETENG_MSG = "Hello, %s! ";
     // message sending to client in successful connection case
-    public static final String CONNECTION_WELCOME_MSG = "You are " +
-                               "successfully connected to server!";
+    public static final String CONNECTION_WELCOME_MSG = "Hello, %s! You are successfully connected to server!";
+    // message displaying on server in the moment of new client connection
+    public static final String CONNECTION_BEGIN_SRVMSG = "User \"%s\" is connected\n";
     // message displaying on server in client disconnect case
-    public static final String CONNECTION_QUIT_MSG = "User \"%s\" is " +
-                                                     "disconnected\n";
+    public static final String CONNECTION_QUIT_SRVMSG = "User \"%s\" is disconnected\n";
     // constants for messages packing/extracting from stream
     public static final int DEFAULT_ID = -1;  // client's ID default value
     public static final int DEFAULT_SZ = -1;  // default command size value
@@ -71,8 +67,7 @@ public class Info {
     public static final String HOST_TAG = "ServerHost"; // server host name tag
 
     // "absolute" path to logging resource properties file
-    public static final String LOG_RESOURCE_FILE_PATH =
-                               "/res/logging.properties";
+    public static final String LOG_RESOURCE_FILE_PATH = "/res/logging.properties";
 
     public static final int CMD_NOT_FOUND = -1;
     // command for client disconnection
@@ -122,19 +117,6 @@ public class Info {
             Collections.synchronizedList(Arrays.asList("Bob", "Alice", "Jane",
                     "Maga", "Paul", "George", "Fergie", "Nicole", "Alex",
                     "Gloria", "Marty", "Melman", "Britney", "Doro"));
-
-    // correct testing application command line parameters
-    // arguments number
-    public static final int TESTING_CMD_LINE_ARGS_NUMBER = 6;
-    // correct keys number
-    public static final int TESTING_CMD_LINE_KEYS_NUMBER = 3;
-
-    // usage brief annotation for testing class
-    public static final String TESTING_ANNOTATION = "Usage: java " +
-            "-classpath <path_to_package_folders> Testing\n" +
-            "-config <path_to_cfg_file/cfg file name.xml>\n" +
-            "-usr <clients_number>\n" +
-            "-cmd <commands_number_per_client>";
 
     // usage brief annotation foe main class
     public static final String MAIN_ANNOTATION = "Usage: java -classpath " +
