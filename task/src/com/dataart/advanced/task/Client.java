@@ -67,8 +67,7 @@ public class Client {
         while (recMsg.receive(in) != DEFAULT_SZ && !Info.QUIT_CMD.equals(usrMsg)) {
             outputServerProcessedMessage(listener, recMsg);
 
-            consoleIO.out().print("> ");
-            consoleIO.out().flush();
+            consoleIO.printAndFlush("> ");
 
             usrMsg = cmdIn.readLine();
 
@@ -150,8 +149,7 @@ public class Client {
         try ( BufferedReader cmdIn = new BufferedReader(new InputStreamReader(inStream));
               ConsoleIO consoleIO = new ConsoleIO()) {
             // asking user name
-            consoleIO.out().print("Enter your name, plz: ");
-            consoleIO.out().flush();
+            consoleIO.printAndFlush("Enter your name, plz: ");
 
             String userName = cmdIn.readLine();
 

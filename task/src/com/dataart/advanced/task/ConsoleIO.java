@@ -37,10 +37,12 @@ public class ConsoleIO implements Closeable {
     }
 
     /**
-     * @return writer instance for messages output to device console if it is provided or standard output
+     * Prints given message using specified writer then flushes writer's text buffer for instant message output
+     * @param message - message for output in device console or standard output
      */
-    PrintWriter out() {
-        return writer;
+    void printAndFlush(String message) {
+        writer.print(message);
+        writer.flush();
     }
 
     /**
